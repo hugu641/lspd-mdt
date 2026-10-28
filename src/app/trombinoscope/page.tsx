@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useState, useMemo } from "react";
+import Link from "next/link";
 import { useOfficer, Officer } from "../../context/OfficerContext";
 import { isHighCommand } from "../../lib/ranks";
 import {
@@ -21,6 +22,7 @@ import {
   X,
   Sparkles,
   Bot,
+  FileText,
 } from "lucide-react";
 
 export default function TrombinoscopePage() {
@@ -540,18 +542,26 @@ export default function TrombinoscopePage() {
                   </span>
                 </div>
 
-                {/* Edit Button if Self or High Command */}
-                {(isMe || canManageOthers) && (
-                  <div className="pt-1.5 border-t border-[#151833]">
+                {/* Card Action Buttons: View Profile + Edit */}
+                <div className="pt-2 border-t border-[#151833] space-y-1.5">
+                  <Link
+                    href={`/trombinoscope/${officer.id}`}
+                    className="w-full py-1.5 px-2 rounded-xl bg-gradient-to-r from-purple-900/60 to-indigo-900/60 hover:from-purple-800 hover:to-indigo-800 border border-purple-500/40 text-xs font-bold text-white transition-all flex items-center justify-center gap-1.5 shadow-sm"
+                  >
+                    <FileText className="w-3.5 h-3.5 text-purple-300" />
+                    <span>Consulter le Dossier</span>
+                  </Link>
+
+                  {(isMe || canManageOthers) && (
                     <button
                       onClick={() => openEditModal(officer)}
                       className="w-full py-1 px-2 rounded-xl bg-[#12152d] hover:bg-[#1b2046] border border-[#21274d] text-[10px] font-bold text-slate-300 hover:text-white transition-all flex items-center justify-center gap-1.5"
                     >
                       <Edit3 className="w-3 h-3 text-purple-400" />
-                      <span>{isMe ? "Modifier mes coordonnées" : "Gérer coordonnées"}</span>
+                      <span>{isMe ? "Modifier coordonnées" : "Gérer coordonnées"}</span>
                     </button>
-                  </div>
-                )}
+                  )}
+                </div>
               </div>
             </div>
           );

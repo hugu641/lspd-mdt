@@ -41,51 +41,107 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const [departmentMode, setDepartmentMode] = useState<"POLICE" | "EMS">("POLICE");
   const [showPhoneModal, setShowPhoneModal] = useState(false);
+  const [matriculeInput, setMatriculeInput] = useState("");
+  const [firstNameInput, setFirstNameInput] = useState("");
+  const [lastNameInput, setLastNameInput] = useState("");
   const [phoneInput, setPhoneInput] = useState("");
-  const [savingPhone, setSavingPhone] = useState(false);
+  const [savingOnboarding, setSavingOnboarding] = useState(false);
+  const [onboardingFeedback, setOnboardingFeedback] = useState<string | null>(null);
 
-  // Check if current officer lacks a phone number on login
+  // Check if current officer lacks formatted matricule or phone number on login
   React.useEffect(() => {
-    if (
-      currentOfficer &&
-      (!currentOfficer.phone ||
-        currentOfficer.phone.trim() === "" ||
-        currentOfficer.phone === "555-")
-    ) {
-      const dismissed =
-        typeof window !== "undefined"
-          ? sessionStorage.getItem(`lspd_phone_dismissed_${currentOfficer.id}`)
-          : null;
-      if (!dismissed) {
-        setShowPhoneModal(true);
+    if (currentOfficer) {
+      const hasStandardName = /^\d{1,4}\s*\|\s*.+/.test(currentOfficer.name);
+      const hasPhone =
+        currentOfficer.phone &&
+        currentOfficer.phone.trim() !== "" &&
+        currentOfficer.phone !== "555-";
+
+      if (!hasStandardName || !hasPhone) {
+        const dismissed =
+          typeof window !== "undefined"
+            ? sessionStorage.getItem(`lspd_onboarding_dismissed_${currentOfficer.id}`)
+            : null;
+        if (!dismissed) {
+          const parts = currentOfficer.name.split("|");
+          if (parts.length === 2) {
+            setMatriculeInput(parts[0].trim());
+            const nameParts = parts[1].trim().split(" ");
+            setFirstNameInput(nameParts[0] || "");
+            setLastNameInput(nameParts.slice(1).join(" ") || "");
+          } else {
+            setMatriculeInput(currentOfficer.badgeNumber || "");
+            const nameParts = currentOfficer.name.trim().split(" ");
+            setFirstNameInput(nameParts[0] || "");
+            setLastNameInput(nameParts.slice(1).join(" ") || "");
+          }
+          setPhoneInput(currentOfficer.phone || "");
+          setShowPhoneModal(true);
+        }
       }
     }
   }, [currentOfficer]);
 
-  const handleSavePhone = async (e: React.FormEvent) => {
+  const handleSaveOnboarding = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!phoneInput.trim() || !currentOfficer) return;
-    setSavingPhone(true);
+    if (!currentOfficer) return;
+    const cleanBadge = matriculeInput.trim();
+    const cleanFirst = firstNameInput.trim();
+    const cleanLast = lastNameInput.trim();
+    const cleanPhone = phoneInput.trim();
+
+    if (!cleanBadge || !cleanFirst) return;
+
+    setSavingOnboarding(true);
+    setOnboardingFeedback(null);
+
+    const formattedName = cleanLast
+      ? `${cleanBadge} | ${cleanFirst} ${cleanLast}`
+      : `${cleanBadge} | ${cleanFirst}`;
+
     try {
-      const res = await fetch(`/api/officers/${currentOfficer.id}/status`, {
+      const res = await fetch(`/api/officers/${currentOfficer.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone: phoneInput.trim() }),
+        body: JSON.stringify({
+          name: formattedName,
+          badgeNumber: cleanBadge,
+          callsign: `${currentOfficer.rank.toUpperCase()}-${cleanBadge}`,
+          phone: cleanPhone || null,
+        }),
       });
+
+      const data = await res.json();
       if (res.ok) {
-        setCurrentOfficer({ ...currentOfficer, phone: phoneInput.trim() });
+        setCurrentOfficer({
+          ...currentOfficer,
+          name: formattedName,
+          badgeNumber: cleanBadge,
+          callsign: `${currentOfficer.rank.toUpperCase()}-${cleanBadge}`,
+          phone: cleanPhone || null,
+        });
+
+        let successMsg = `Profil mis à jour : ${formattedName}`;
+        if (data.discordNicknameResult?.success) {
+          successMsg += " • Pseudo Discord mis à jour !";
+        } else if (data.discordNicknameResult?.isOwner) {
+          successMsg += " (Note: Discord protège le pseudo du Fondateur du serveur).";
+        }
+        alert(successMsg);
         setShowPhoneModal(false);
+      } else {
+        setOnboardingFeedback(`Erreur : ${data.error || "Impossible de sauvegarder"}`);
       }
-    } catch (err) {
-      console.error("Error saving phone number:", err);
+    } catch (err: any) {
+      setOnboardingFeedback(`Erreur : ${err.message}`);
     } finally {
-      setSavingPhone(false);
+      setSavingOnboarding(false);
     }
   };
 
   const handleDismissPhone = () => {
     if (currentOfficer) {
-      sessionStorage.setItem(`lspd_phone_dismissed_${currentOfficer.id}`, "true");
+      sessionStorage.setItem(`lspd_onboarding_dismissed_${currentOfficer.id}`, "true");
     }
     setShowPhoneModal(false);
   };
@@ -340,53 +396,113 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
           <Radio className="w-5 h-5" />
         </Link>
 
-        {/* First Connection / Missing Phone Onboarding Modal */}
+        {/* First Connection / Onboarding Modal (Matricule, Nom, Prénom, Téléphone) */}
         {showPhoneModal && currentOfficer && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-            <div className="w-full max-w-md rounded-3xl bg-[#0c0e1e] border border-purple-500/40 shadow-2xl p-6 sm:p-7 space-y-5 text-left relative overflow-hidden">
+            <div className="w-full max-w-lg rounded-3xl bg-[#0c0e1e] border border-purple-500/40 shadow-2xl p-6 sm:p-7 space-y-5 text-left relative overflow-hidden">
               {/* Background gradient decorative glow */}
               <div className="absolute -top-24 -right-24 w-48 h-48 bg-purple-600/20 rounded-full blur-3xl pointer-events-none" />
 
               <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-700 to-indigo-600 flex items-center justify-center text-white flex-shrink-0 shadow-lg shadow-purple-900/40">
-                  <Phone className="w-6 h-6 animate-pulse" />
+                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-700 via-indigo-600 to-pink-600 flex items-center justify-center text-white flex-shrink-0 shadow-lg shadow-purple-900/40">
+                  <Shield className="w-6 h-6 animate-pulse" />
                 </div>
                 <div>
                   <div className="flex items-center gap-2">
                     <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-950/80 text-purple-300 border border-purple-500/40 font-mono">
-                      PREMIÈRE CONNEXION
+                      PREMIÈRE CONNEXION • ENRÔLEMENT
                     </span>
                   </div>
                   <h3 className="text-lg font-black text-white mt-1">
-                    Numéro de Téléphone In-Game
+                    Fiche Matricule & Identité In-Game
                   </h3>
                   <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                    Bienvenue sur le MDT <strong>{currentOfficer.name}</strong> ! Renseignez votre numéro de téléphone en ville (RP) pour que vos collègues et la régulation puissent vous joindre en intervention.
+                    Configurez votre identité en ville. Votre matricule et votre nom seront automatiquement synchronisés sur le <strong>MDT</strong> et sur votre pseudo <strong>Discord</strong>.
                   </p>
                 </div>
               </div>
 
-              <form onSubmit={handleSavePhone} className="space-y-4 pt-1">
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1.5 uppercase tracking-wider">
-                    Numéro de téléphone en ville (In-Game)
-                  </label>
-                  <div className="relative">
-                    <Phone className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-purple-400" />
+              <form onSubmit={handleSaveOnboarding} className="space-y-4 pt-1">
+                {/* Row 1: Matricule + Téléphone */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                      Matricule (ex: 04, 12, 88)
+                    </label>
                     <input
                       type="text"
                       required
-                      autoFocus
-                      placeholder="ex: 555-0188 ou 455-8912"
-                      value={phoneInput}
-                      onChange={(e) => setPhoneInput(e.target.value)}
-                      className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-[#070814] border border-[#21274d] text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-mono font-bold"
+                      placeholder="ex: 04"
+                      value={matriculeInput}
+                      onChange={(e) => setMatriculeInput(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-[#070814] border border-[#21274d] text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-mono font-bold"
                     />
                   </div>
-                  <p className="text-[10px] text-slate-400 mt-1">
-                    Ce numéro apparaîtra sur votre carte de service et dans le trombinoscope des effectifs.
-                  </p>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                      Téléphone en ville (In-Game)
+                    </label>
+                    <div className="relative">
+                      <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-purple-400" />
+                      <input
+                        type="text"
+                        required
+                        placeholder="ex: 555-0188"
+                        value={phoneInput}
+                        onChange={(e) => setPhoneInput(e.target.value)}
+                        className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#070814] border border-[#21274d] text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-mono font-bold"
+                      />
+                    </div>
+                  </div>
                 </div>
+
+                {/* Row 2: Prénom + Nom */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                      Prénom RP
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="ex: Hugo"
+                      value={firstNameInput}
+                      onChange={(e) => setFirstNameInput(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-[#070814] border border-[#21274d] text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-bold"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                      Nom de Famille RP
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="ex: Derma"
+                      value={lastNameInput}
+                      onChange={(e) => setLastNameInput(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-[#070814] border border-[#21274d] text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-bold"
+                    />
+                  </div>
+                </div>
+
+                {/* Live Nickname Preview */}
+                <div className="p-3 rounded-2xl bg-[#070814] border border-[#1e2344] flex items-center justify-between">
+                  <div className="text-[11px] text-slate-400 font-semibold">
+                    Aperçu sur le site & Discord :
+                  </div>
+                  <div className="font-mono text-xs font-black text-purple-300 px-2.5 py-1 rounded-lg bg-purple-950/80 border border-purple-500/40">
+                    {matriculeInput.trim() || "00"} | {firstNameInput.trim() || "Prénom"} {lastNameInput.trim() || "Nom"}
+                  </div>
+                </div>
+
+                {onboardingFeedback && (
+                  <div className="text-xs text-rose-400 font-bold p-2.5 rounded-xl bg-rose-950/40 border border-rose-500/40">
+                    {onboardingFeedback}
+                  </div>
+                )}
 
                 <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#181c3b]">
                   <button
@@ -398,11 +514,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                   </button>
                   <button
                     type="submit"
-                    disabled={savingPhone || !phoneInput.trim()}
+                    disabled={savingOnboarding || !matriculeInput.trim() || !firstNameInput.trim()}
                     className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-purple-900/40 transition-all disabled:opacity-50 flex items-center gap-2"
                   >
                     <Check className="w-4 h-4" />
-                    <span>{savingPhone ? "Enregistrement..." : "Enregistrer mon numéro"}</span>
+                    <span>{savingOnboarding ? "Enregistrement..." : "Valider & Synchroniser Discord"}</span>
                   </button>
                 </div>
               </form>

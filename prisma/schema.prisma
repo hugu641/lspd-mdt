@@ -17,6 +17,7 @@ model Officer {
   department      String   @default("LSPD") // LSPD, BCSO, SASP (EMS prévu)
   avatarUrl       String?
   phone           String?
+  serviceWeapons  String?  // JSON string: list of assigned service weapons with serial numbers
   status          String   @default("10-10") // 10-8, 10-7, 10-6, 10-10
   unitType        String   @default("Lincoln") // Lincoln, Adam, Tango, Mary, Henry, David, Nora
   isInstructor    Boolean  @default(false)

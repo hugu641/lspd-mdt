@@ -967,3 +967,55 @@ export async function stripOfficerDiscordRoles(discordId: string) {
     return { success: false, error: err?.message || "Erreur lors du retrait des rôles Discord" };
   }
 }
+
+/**
+ * Updates a guild member's nickname on Discord (e.g. "04 | Hugo Derma")
+ */
+export async function updateDiscordMemberNickname(discordId: string, newNickname: string) {
+  const config = await getDiscordConfig();
+  const token = config.botToken;
+  const guildId = config.guildId;
+
+  if (!token || !guildId || !discordId) {
+    return { success: false, error: "Configuration Discord incomplète." };
+  }
+
+  const cleanUserId = discordId.trim().replace(/[<@!>]/g, "");
+  if (!cleanUserId || !/^\d{17,20}$/.test(cleanUserId)) {
+    return { success: false, error: `ID Discord invalide: ${discordId}` };
+  }
+
+  try {
+    const res = await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${cleanUserId}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bot ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        nick: newNickname.slice(0, 32),
+      }),
+    });
+
+    if (res.ok) {
+      return { success: true, nickname: newNickname };
+    }
+
+    const data = await res.json().catch(() => ({}));
+    if (res.status === 403) {
+      return {
+        success: false,
+        isOwner: true,
+        error: "Discord interdit aux bots de modifier le pseudo du propriétaire du serveur ou d'un rôle supérieur.",
+      };
+    }
+
+    return {
+      success: false,
+      error: data?.message || `Erreur Discord (${res.status})`,
+    };
+  } catch (err: any) {
+    console.error("updateDiscordMemberNickname error:", err);
+    return { success: false, error: err?.message || "Erreur de modification du pseudo Discord" };
+  }
+}
