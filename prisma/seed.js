@@ -53,8 +53,8 @@ async function main() {
   if (radioCount === 0) {
     console.log("Seeding official Radio Codes...");
     const radioCodes = [
-      { codeType: "TEN_CODE", code: "10-1", title: "Officier à terre / en danger", description: "Priorité absolue sur la fréquence", orderIndex: 1 },
-      { codeType: "TEN_CODE", code: "10-3", title: "Silence Radio", description: "Cesser toute communication non vitale", orderIndex: 2 },
+      { codeType: "TEN_CODE", code: "10-1", title: "Officier à terre / en danger", description: "Urgence vitale", orderIndex: 1 },
+      { codeType: "TEN_CODE", code: "10-3", title: "Silence Radio", description: "Cesser transmission", orderIndex: 2 },
       { codeType: "TEN_CODE", code: "10-4", title: "Affirmatif", description: "Compris / D'accord", orderIndex: 3 },
       { codeType: "TEN_CODE", code: "10-5", title: "Négatif", description: "Refus / Non", orderIndex: 4 },
       { codeType: "TEN_CODE", code: "10-6", title: "Officier Occupé", description: "Ne peut pas répondre immédiatement", orderIndex: 5 },

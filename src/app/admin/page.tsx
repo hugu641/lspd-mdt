@@ -8,40 +8,34 @@ import {
   Users,
   Plus,
   BookOpen,
-  DollarSign,
-  Clock,
-  CheckCircle,
-  Award,
-  AlertTriangle,
   Bot,
   MessageSquare,
   RefreshCw,
   Send,
   Check,
-  ExternalLink,
-  Info,
-  Key,
-  Server,
-  Zap,
 } from "lucide-react";
 
 export default function AdminPage() {
   const { currentOfficer, allOfficers, refreshOfficers } = useOfficer();
   const [penalCode, setPenalCode] = useState<any[]>([]);
-  const [activeTab, setActiveTab] = useState<"officers" | "penal" | "discord">("officers");
+  const [activeTab, setActiveTab] = useState<"officers" | "penal">("officers");
   const [loading, setLoading] = useState(true);
 
   // Officer creation modal
   const [showOfficerModal, setShowOfficerModal] = useState(false);
   const [showArticleModal, setShowArticleModal] = useState(false);
 
-  // The EXACT 13 ranks provided by the user:
+  // Official Ranks list including US Marshal (Admins du serveur)
   const ranksList = [
+    "Directeur US Marshal",
+    "US Marshal - Superviseur Légal",
+    "US Marshal",
     "Chief of Police",
     "Assistant-Chief",
     "Deputy-Chief",
     "Commandant",
     "Capitaine",
+    "Lieutenant-Chef",
     "Lieutenant",
     "Sergent-Chef",
     "Sergent",
@@ -75,59 +69,14 @@ export default function AdminPage() {
     secondarySanction: "",
   });
 
-  // Discord states
-  const [discordSettings, setDiscordSettings] = useState({
-    botToken: "",
-    guildId: "",
-    clientId: "",
-    clientSecret: "",
-    welcomeChannelId: "",
-    autoSyncRoles: true,
-    sendWelcomeDm: true,
-    authRequired: true,
-    allowedRoles: "*,LSPD,Police,Fondateur,Admin,Direction,Staff,Rookie,Officier I,Officier II,Officier III,SLO,Sergent,Sergent-Chef,Lieutenant,Capitaine,Commandant,Deputy-Chief,Assistant-Chief,Chief of Police",
-    isConfigured: false,
-    isConfiguredOAuth: false,
-    hasToken: false,
-    hasSecret: false,
-  });
-  const [tokenInput, setTokenInput] = useState("");
-  const [guildIdInput, setGuildIdInput] = useState("");
-  const [clientIdInput, setClientIdInput] = useState("");
-  const [clientSecretInput, setClientSecretInput] = useState("");
-  const [allowedRolesInput, setAllowedRolesInput] = useState("");
-  const [originUrl, setOriginUrl] = useState("");
-  const [discordTestResult, setDiscordTestResult] = useState<any>(null);
-  const [isTestingDiscord, setIsTestingDiscord] = useState(false);
-  const [isSavingDiscord, setIsSavingDiscord] = useState(false);
-  const [isSyncingAll, setIsSyncingAll] = useState(false);
-  const [syncFeedback, setSyncFeedback] = useState<string | null>(null);
+    const [officerSyncStatus, setOfficerSyncStatus] = useState<{ [officerId: string]: string }>({});
   const [editingDiscordId, setEditingDiscordId] = useState<{ [officerId: string]: string }>({});
-  const [officerSyncStatus, setOfficerSyncStatus] = useState<{ [officerId: string]: string }>({});
-  const [testDmInput, setTestDmInput] = useState("");
-  const [sendingTestDm, setSendingTestDm] = useState(false);
-  const [testDmFeedback, setTestDmFeedback] = useState<string | null>(null);
 
   const fetchData = async () => {
     try {
-      if (typeof window !== "undefined") {
-        setOriginUrl(window.location.origin);
-      }
-      const [penalRes, discordRes] = await Promise.all([
-        fetch("/api/penal-code"),
-        fetch("/api/discord/settings"),
-      ]);
-
+      const penalRes = await fetch("/api/penal-code");
       const penalData = await penalRes.json();
-      const discordData = await discordRes.json();
-
       setPenalCode(Array.isArray(penalData) ? penalData : []);
-      if (discordData && !discordData.error) {
-        setDiscordSettings(discordData);
-        setGuildIdInput(discordData.guildId || "");
-        setClientIdInput(discordData.clientId || "");
-        setAllowedRolesInput(discordData.allowedRoles || "");
-      }
     } catch (err) {
       console.error(err);
     } finally {
@@ -293,121 +242,6 @@ export default function AdminPage() {
     }
   };
 
-  // Save Discord Settings
-  const handleSaveDiscordSettings = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSavingDiscord(true);
-    setSyncFeedback(null);
-    try {
-      const payload: any = {
-        guildId: guildIdInput,
-        clientId: clientIdInput.trim(),
-        autoSyncRoles: discordSettings.autoSyncRoles,
-        sendWelcomeDm: discordSettings.sendWelcomeDm,
-        authRequired: discordSettings.authRequired,
-        allowedRoles: allowedRolesInput.trim() || discordSettings.allowedRoles,
-      };
-      if (tokenInput.trim()) {
-        payload.botToken = tokenInput.trim();
-      }
-      if (clientSecretInput.trim()) {
-        payload.clientSecret = clientSecretInput.trim();
-      }
-
-      const res = await fetch("/api/discord/settings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setDiscordSettings((prev) => ({ ...prev, ...data }));
-        setTokenInput("");
-        setClientSecretInput("");
-        setSyncFeedback("✓ Paramètres Discord & Passerelle d'authentification enregistrés avec succès !");
-      } else {
-        setSyncFeedback(`✕ Erreur : ${data.error || "Impossible d'enregistrer"}`);
-      }
-    } catch (err: any) {
-      setSyncFeedback(`✕ Erreur : ${err.message}`);
-    } finally {
-      setIsSavingDiscord(false);
-    }
-  };
-
-  // Test Discord Connection
-  const handleTestDiscordConnection = async () => {
-    setIsTestingDiscord(true);
-    setDiscordTestResult(null);
-    try {
-      const payload: any = {};
-      if (tokenInput.trim()) payload.botToken = tokenInput.trim();
-      if (guildIdInput.trim()) payload.guildId = guildIdInput.trim();
-
-      const res = await fetch("/api/discord/test", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-      });
-      const data = await res.json();
-      setDiscordTestResult(data);
-    } catch (err: any) {
-      setDiscordTestResult({ success: false, error: err.message });
-    } finally {
-      setIsTestingDiscord(false);
-    }
-  };
-
-  // Sync All Discord Roles
-  const handleSyncAllRoles = async () => {
-    setIsSyncingAll(true);
-    setSyncFeedback(null);
-    try {
-      const res = await fetch("/api/discord/sync", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setSyncFeedback(`✓ Synchronisation terminée : ${data.syncedCount || 0} agents mis à jour sur ${data.totalCount || 0} !`);
-      } else {
-        setSyncFeedback(`✕ Erreur lors de la synchronisation : ${data.error || "Échec"}`);
-      }
-    } catch (err: any) {
-      setSyncFeedback(`✕ Erreur : ${err.message}`);
-    } finally {
-      setIsSyncingAll(false);
-    }
-  };
-
-  // Send Test DM
-  const handleSendTestDm = async () => {
-    if (!testDmInput.trim()) return;
-    setSendingTestDm(true);
-    setTestDmFeedback(null);
-    try {
-      const res = await fetch("/api/discord/send-dm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          discordId: testDmInput.trim(),
-          customMessage: "🔔 **Test LSPD MDT Bot** : Le système de notification directe en Message Privé (MP) fonctionne parfaitement !",
-        }),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setTestDmFeedback("✓ Message Privé (MP) envoyé avec succès ! Vérifiez votre Discord.");
-      } else {
-        setTestDmFeedback(`✕ Échec d'envoi du MP : ${data.error || "Vérifiez que le bot partage un serveur avec cet utilisateur et que ses MP sont ouverts."}`);
-      }
-    } catch (err: any) {
-      setTestDmFeedback(`✕ Erreur : ${err.message}`);
-    } finally {
-      setSendingTestDm(false);
-    }
-  };
-
   // Create Penal Article
   const handleCreateArticle = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -469,17 +303,6 @@ export default function AdminPage() {
               <span>Ajouter Article</span>
             </button>
           )}
-
-          {activeTab === "discord" && (
-            <button
-              onClick={handleSyncAllRoles}
-              disabled={isSyncingAll}
-              className="flex-1 sm:flex-none justify-center inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-bold shadow-lg shadow-indigo-900/40 transition-all disabled:opacity-50"
-            >
-              <RefreshCw className={`w-4 h-4 ${isSyncingAll ? "animate-spin" : ""}`} />
-              <span>{isSyncingAll ? "Synchronisation..." : "Sync Tous les Rôles Discord"}</span>
-            </button>
-          )}
         </div>
       </div>
 
@@ -495,23 +318,6 @@ export default function AdminPage() {
         >
           <Users className="w-4 h-4" />
           <span>Effectifs & Grades ({allOfficers.length})</span>
-        </button>
-
-        <button
-          onClick={() => setActiveTab("discord")}
-          className={`flex items-center gap-1.5 px-3.5 sm:px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
-            activeTab === "discord"
-              ? "bg-indigo-600 text-white shadow-md shadow-indigo-900/30"
-              : "text-slate-400 hover:text-white hover:bg-[#12152b]"
-          }`}
-        >
-          <Bot className="w-4 h-4 text-indigo-400" />
-          <span>Bot Discord & Rôles Auto</span>
-          <span
-            className={`w-2 h-2 rounded-full ml-1 ${
-              discordSettings.isConfigured ? "bg-emerald-400 shadow-[0_0_6px_#10b981]" : "bg-amber-400"
-            }`}
-          />
         </button>
 
         <button
@@ -774,402 +580,6 @@ export default function AdminPage() {
         </div>
       )}
 
-      {/* =========================================================================
-          TAB 2: CONFIGURATION DU BOT DISCORD & RÔLES AUTOMATIQUES
-          ========================================================================= */}
-      {activeTab === "discord" && (
-        <div className="space-y-6">
-          {/* Status Banner */}
-          <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[#12152f] via-[#0d1024] to-[#090b18] border border-indigo-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-xl">
-            <div className="flex items-start gap-3.5">
-              <div className="w-12 h-12 rounded-2xl bg-indigo-950 border border-indigo-500/40 flex items-center justify-center text-indigo-300 flex-shrink-0 shadow-lg">
-                <Bot className="w-6 h-6" />
-              </div>
-              <div>
-                <div className="flex items-center gap-2">
-                  <h2 className="text-base sm:text-lg font-black text-white">
-                    Passerelle Discord Bot • LSPD Automation
-                  </h2>
-                  <span
-                    className={`text-[10px] font-bold px-2.5 py-0.5 rounded-full flex items-center gap-1.5 border ${
-                      discordSettings.isConfigured
-                        ? "bg-emerald-950/80 text-emerald-300 border-emerald-500/40"
-                        : "bg-amber-950/80 text-amber-300 border-amber-500/40"
-                    }`}
-                  >
-                    <span
-                      className={`w-1.5 h-1.5 rounded-full ${
-                        discordSettings.isConfigured ? "bg-emerald-400" : "bg-amber-400"
-                      }`}
-                    />
-                    <span>{discordSettings.isConfigured ? "Bot Configuré" : "Configuration Requise"}</span>
-                  </span>
-                </div>
-                <p className="text-xs text-slate-400 mt-0.5">
-                  Gestion instantanée des rôles Discord lors des promotions et envoi automatique de Message Privé (MP) aux recrues.
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-2">
-              <button
-                onClick={handleTestDiscordConnection}
-                disabled={isTestingDiscord}
-                className="px-3.5 py-2 rounded-xl bg-[#141838] hover:bg-[#1d2352] text-xs font-bold text-indigo-300 border border-indigo-500/40 flex items-center gap-1.5 transition-all shadow-md"
-              >
-                <Zap className={`w-3.5 h-3.5 ${isTestingDiscord ? "animate-pulse" : ""}`} />
-                <span>{isTestingDiscord ? "Test en cours..." : "Tester la connexion"}</span>
-              </button>
-            </div>
-          </div>
-
-          {/* Test Result Display */}
-          {discordTestResult && (
-            <div
-              className={`p-4 rounded-2xl border text-xs space-y-2 animate-fade-in ${
-                discordTestResult.success
-                  ? "bg-emerald-950/30 border-emerald-500/40 text-emerald-200"
-                  : "bg-rose-950/30 border-rose-500/40 text-rose-200"
-              }`}
-            >
-              <div className="flex items-center gap-2 font-bold text-sm">
-                {discordTestResult.success ? (
-                  <>
-                    <CheckCircle className="w-4 h-4 text-emerald-400" />
-                    <span>Connexion Discord réussie !</span>
-                  </>
-                ) : (
-                  <>
-                    <AlertTriangle className="w-4 h-4 text-rose-400" />
-                    <span>Échec de connexion Discord</span>
-                  </>
-                )}
-              </div>
-
-              {discordTestResult.success ? (
-                <div className="space-y-1 text-slate-300 text-xs">
-                  <div>
-                    🤖 Bot identifié : <strong>{discordTestResult.bot?.username}#{discordTestResult.bot?.discriminator}</strong> (ID: {discordTestResult.bot?.id})
-                  </div>
-                  {discordTestResult.guild && (
-                    <div>
-                      🏰 Serveur lié : <strong>{discordTestResult.guild?.name}</strong> ({discordTestResult.roles?.length || 0} rôles détectés)
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <div className="font-mono text-rose-300">{discordTestResult.error}</div>
-              )}
-            </div>
-          )}
-
-          {/* Feedback banner */}
-          {syncFeedback && (
-            <div className="p-3 rounded-xl bg-purple-950/40 border border-purple-500/40 text-purple-200 text-xs font-semibold">
-              {syncFeedback}
-            </div>
-          )}
-
-          {/* Configuration Form Card */}
-          <div className="p-5 rounded-2xl bg-[#0a0c1a] border border-[#181c38] space-y-6">
-            <div className="flex items-center gap-2 pb-3 border-b border-[#181c38]">
-              <Key className="w-4 h-4 text-indigo-400" />
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                Configuration de la Passerelle d&apos;Accès & du Bot Discord
-              </h3>
-            </div>
-
-            <form onSubmit={handleSaveDiscordSettings} className="space-y-6">
-              {/* SECTION A: PASSERELLE DE CONNEXION DISCORD (OAUTH2) */}
-              <div className="p-4 rounded-xl bg-[#0e1124] border border-[#1d2242] space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Shield className="w-4 h-4 text-purple-400" />
-                    <span className="text-xs font-bold text-white uppercase tracking-wider">
-                      1. Passerelle OAuth2 (Connexion exclusive aux agents LSPD)
-                    </span>
-                  </div>
-                  {discordSettings.isConfiguredOAuth ? (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-500/40">
-                      OAuth2 Actif
-                    </span>
-                  ) : (
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-950/80 text-amber-300 border border-amber-500/40">
-                      Non configuré
-                    </span>
-                  )}
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-300 block">
-                      Client ID Discord (Application ID) *
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ex: 133984920492810293"
-                      value={clientIdInput}
-                      onChange={(e) => setClientIdInput(e.target.value)}
-                      className="w-full px-3 py-1.5 rounded-xl bg-[#090b16] border border-[#1d2242] text-xs font-mono text-white focus:outline-none focus:border-purple-500"
-                    />
-                    <p className="text-[9px] text-slate-400">
-                      Trouvé dans Discord Developer Portal &gt; Votre Application &gt; General Information &gt; Application ID.
-                    </p>
-                  </div>
-
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
-                      <span>Client Secret Discord *</span>
-                      {discordSettings.hasSecret && (
-                        <span className="text-[9px] text-emerald-400 font-mono">✓ Secret actif</span>
-                      )}
-                    </label>
-                    <input
-                      type="password"
-                      placeholder={discordSettings.clientSecret || "Collez le Client Secret..."}
-                      value={clientSecretInput}
-                      onChange={(e) => setClientSecretInput(e.target.value)}
-                      className="w-full px-3 py-1.5 rounded-xl bg-[#090b16] border border-[#1d2242] text-xs font-mono text-white focus:outline-none focus:border-purple-500"
-                    />
-                    <p className="text-[9px] text-slate-400">
-                      Trouvé dans Discord Developer Portal &gt; OAuth2 &gt; Client Secret &gt; Reset Secret.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Redirect URI copy box */}
-                <div className="p-2.5 rounded-lg bg-[#070812] border border-[#181c38] space-y-1">
-                  <div className="flex items-center justify-between text-[10px] text-slate-400">
-                    <span className="font-bold text-purple-300">URL de Redirection OAuth2 (À copier dans Discord) :</span>
-                    <span className="text-[9px] text-slate-500">OAuth2 &gt; Redirects</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <code className="flex-1 px-2 py-1 rounded bg-[#0a0c18] border border-[#1a1f3c] text-[11px] text-cyan-300 font-mono select-all">
-                      {(originUrl || "https://ruby-mdt.onrender.com") + "/api/auth/discord/callback"}
-                    </code>
-                    <button
-                      type="button"
-                      onClick={() => {
-                        const targetUrl = (originUrl || "https://ruby-mdt.onrender.com") + "/api/auth/discord/callback";
-                        navigator.clipboard.writeText(targetUrl);
-                        alert(`URL copiée :\n${targetUrl}\n\nCollez-la dans Discord Developer Portal > OAuth2 > Redirects.`);
-                      }}
-                      className="px-2.5 py-1 rounded-lg bg-purple-900/60 hover:bg-purple-800 text-purple-200 text-xs font-bold border border-purple-500/40"
-                    >
-                      Copier
-                    </button>
-                  </div>
-                </div>
-
-                {/* Security Gate Toggle & Allowed Roles */}
-                <div className="pt-2 space-y-2 border-t border-[#181c38]">
-                  <label className="flex items-center gap-3 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={discordSettings.authRequired}
-                      onChange={(e) =>
-                        setDiscordSettings({ ...discordSettings, authRequired: e.target.checked })
-                      }
-                      className="rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-0"
-                    />
-                    <span className="text-xs font-bold text-white">
-                      Verrouillage Total : Exiger une connexion Discord pour accéder au terminal MDT
-                    </span>
-                  </label>
-
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-bold text-slate-400 block uppercase">
-                      Rôles Discord autorisés à franchir la passerelle (séparés par des virgules) :
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="LSPD, Police, Rookie, Officier I, Officier II, Sergent, Capitaine, Chief of Police..."
-                      value={allowedRolesInput}
-                      onChange={(e) => setAllowedRolesInput(e.target.value)}
-                      className="w-full px-3 py-1.5 rounded-xl bg-[#090b16] border border-[#1d2242] text-xs font-mono text-indigo-300 focus:outline-none focus:border-purple-500"
-                    />
-                    <p className="text-[9px] text-slate-400">
-                      Toute personne ne possédant pas au moins l&apos;un de ces rôles sur votre serveur sera bloquée à la passerelle.
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              {/* SECTION B: BOT DISCORD & SYNCHRONISATION DES RÔLES */}
-              <div className="p-4 rounded-xl bg-[#0e1124] border border-[#1d2242] space-y-3.5">
-                <div className="flex items-center gap-2">
-                  <Bot className="w-4 h-4 text-indigo-400" />
-                  <span className="text-xs font-bold text-white uppercase tracking-wider">
-                    2. Bot Discord (Attribution automatique des rôles & Envoi de MP)
-                  </span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3.5">
-                  {/* Bot Token */}
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-300 flex items-center justify-between">
-                      <span>Token du Bot Discord (DISCORD_BOT_TOKEN) *</span>
-                      {discordSettings.hasToken && (
-                        <span className="text-[9px] text-emerald-400 font-mono">✓ Token actif</span>
-                      )}
-                    </label>
-                    <input
-                      type="password"
-                      placeholder={discordSettings.botToken || "Collez le token du bot..."}
-                      value={tokenInput}
-                      onChange={(e) => setTokenInput(e.target.value)}
-                      className="w-full px-3 py-1.5 rounded-xl bg-[#090b16] border border-[#1d2242] text-xs font-mono text-white focus:outline-none focus:border-indigo-500"
-                    />
-                    <p className="text-[9px] text-slate-400">
-                      Trouvé dans Discord Developer Portal &gt; Applications &gt; Bot &gt; Reset Token.
-                    </p>
-                  </div>
-
-                  {/* Guild ID */}
-                  <div className="space-y-1">
-                    <label className="text-[11px] font-bold text-slate-300 block">
-                      ID du Serveur Discord (DISCORD_GUILD_ID) *
-                    </label>
-                    <input
-                      type="text"
-                      placeholder="Ex: 1109283746582910293"
-                      value={guildIdInput}
-                      onChange={(e) => setGuildIdInput(e.target.value)}
-                      className="w-full px-3 py-1.5 rounded-xl bg-[#090b16] border border-[#1d2242] text-xs font-mono text-white focus:outline-none focus:border-indigo-500"
-                    />
-                    <p className="text-[9px] text-slate-400">
-                      Clic droit sur l&apos;icône de votre serveur Discord &gt; Copier l&apos;identifiant du serveur.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Automation Toggles */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-1">
-                  <label className="flex items-start gap-2.5 p-2.5 rounded-xl bg-[#090b16] border border-[#1b1f3c] cursor-pointer hover:border-indigo-500/40 transition-colors">
-                    <input
-                      type="checkbox"
-                      checked={discordSettings.autoSyncRoles}
-                      onChange={(e) =>
-                        setDiscordSettings({ ...discordSettings, autoSyncRoles: e.target.checked })
-                      }
-                      className="mt-0.5 rounded bg-slate-900 border-slate-700 text-indigo-600 focus:ring-0"
-                    />
-                    <div>
-                      <div className="text-xs font-bold text-white">Mise à jour automatique des rôles</div>
-                      <div className="text-[10px] text-slate-400">
-                        Attribue et retire les grades sur Discord dès qu&apos;une promotion a lieu.
-                      </div>
-                    </div>
-                  </label>
-
-                  <label className="flex items-start gap-2.5 p-2.5 rounded-xl bg-[#090b16] border border-[#1b1f3c] cursor-pointer hover:border-purple-500/40 transition-colors">
-                    <input
-                      type="checkbox"
-                      checked={discordSettings.sendWelcomeDm}
-                      onChange={(e) =>
-                        setDiscordSettings({ ...discordSettings, sendWelcomeDm: e.target.checked })
-                      }
-                      className="mt-0.5 rounded bg-slate-900 border-slate-700 text-purple-600 focus:ring-0"
-                    />
-                    <div>
-                      <div className="text-xs font-bold text-white">Message Privé (MP) automatique</div>
-                      <div className="text-[10px] text-slate-400">
-                        Envoie la convocation et le matricule en MP Discord dès l&apos;enrôlement.
-                      </div>
-                    </div>
-                  </label>
-                </div>
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="submit"
-                  disabled={isSavingDiscord}
-                  className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-500 hover:to-purple-500 text-white text-xs font-black shadow-lg shadow-indigo-900/40 transition-all flex items-center gap-1.5"
-                >
-                  <Check className="w-3.5 h-3.5" />
-                  <span>{isSavingDiscord ? "Enregistrement..." : "Enregistrer la Configuration Complète"}</span>
-                </button>
-              </div>
-            </form>
-          </div>
-
-          {/* Quick MP Testing Tool */}
-          <div className="p-5 rounded-2xl bg-[#0a0c1a] border border-[#181c38] space-y-4">
-            <div className="flex items-center gap-2 pb-3 border-b border-[#181c38]">
-              <Send className="w-4 h-4 text-purple-400" />
-              <h3 className="text-sm font-bold text-white uppercase tracking-wider">
-                Tester l&apos;envoi d&apos;un Message Privé (MP) en direct
-              </h3>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-2">
-              <input
-                type="text"
-                placeholder="Entrez votre ID Discord (ex: 284394029482910293)"
-                value={testDmInput}
-                onChange={(e) => setTestDmInput(e.target.value)}
-                className="flex-1 px-3 py-2 rounded-xl bg-[#0e1124] border border-[#1d2242] text-xs font-mono text-white focus:outline-none focus:border-purple-500"
-              />
-              <button
-                onClick={handleSendTestDm}
-                disabled={sendingTestDm || !testDmInput.trim()}
-                className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-md shadow-purple-900/30 transition-all disabled:opacity-50 flex items-center justify-center gap-1.5"
-              >
-                <Send className="w-3.5 h-3.5" />
-                <span>{sendingTestDm ? "Envoi..." : "Envoyer MP Test"}</span>
-              </button>
-            </div>
-
-            {testDmFeedback && (
-              <div
-                className={`text-xs font-semibold p-2.5 rounded-xl border ${
-                  testDmFeedback.startsWith("✓")
-                    ? "bg-emerald-950/40 border-emerald-500/40 text-emerald-300"
-                    : "bg-rose-950/40 border-rose-500/40 text-rose-300"
-                }`}
-              >
-                {testDmFeedback}
-              </div>
-            )}
-          </div>
-
-          {/* Tutorial & Discord Best Practices */}
-          <div className="p-5 rounded-2xl bg-[#0d0f22] border border-[#1e2344] space-y-3">
-            <div className="flex items-center gap-2 text-amber-400 text-xs font-bold uppercase tracking-wider">
-              <Info className="w-4 h-4" />
-              <span>Guide d&apos;installation & Règle cruciale des rôles Discord</span>
-            </div>
-
-            <ol className="text-xs text-slate-300 space-y-2 list-decimal list-inside leading-relaxed">
-              <li>
-                <strong>Créer le Bot :</strong> Rendez-vous sur le{" "}
-                <a
-                  href="https://discord.com/developers/applications"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="text-purple-400 underline font-semibold"
-                >
-                  Discord Developer Portal
-                </a>
-                , créez une application puis un <strong>Bot</strong>.
-              </li>
-              <li>
-                <strong>Activer les Intents :</strong> Dans l&apos;onglet <em>Bot</em>, activez{" "}
-                <code>Privileged Gateway Intents &gt; Server Members Intent</code>.
-              </li>
-              <li>
-                <strong>Inviter le Bot :</strong> Dans <em>OAuth2 &gt; URL Generator</em>, cochez <code>bot</code> avec les permissions{" "}
-                <code>Manage Roles (Gérer les rôles)</code> et <code>Send Messages</code>.
-              </li>
-              <li className="text-amber-300">
-                ⚠️ <strong>RÈGLE DE HIÉRARCHIE DISCORD ABSOLUE :</strong> Dans les paramètres de votre serveur Discord (
-                <em>Paramètres &gt; Rôles</em>), glissez le rôle du Bot <strong>au-dessus</strong> de tous les rôles de police (Rookie, Officier, Sergent, etc.). Si le rôle du Bot est en-dessous, Discord refusera qu&apos;il attribue ces rôles !
-              </li>
-            </ol>
-          </div>
-        </div>
-      )}
 
       {/* =========================================================================
           TAB 3: CODE PÉNAL

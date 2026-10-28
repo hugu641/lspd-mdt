@@ -14,8 +14,11 @@ export interface DiscordConfig {
   roleMappings?: Record<string, string>; // { "Chief of Police": "roleId", ... }
 }
 
-// 14 Official LSPD Ranks for matching
+// Official LSPD & US Marshal Ranks for matching
 export const LSPD_RANK_NAMES = [
+  "Directeur US Marshal",
+  "US Marshal - Superviseur Légal",
+  "US Marshal",
   "Chief of Police",
   "Assistant-Chief",
   "Deputy-Chief",
@@ -34,9 +37,24 @@ export const LSPD_RANK_NAMES = [
 
 /**
  * Robust rank detector that cleans emojis, decorators and typos
- * (e.g. "👮‍♂️︙Rookie︙" -> "Rookie", "Offcier I" -> "Officier I")
+ * (e.g. "👮‍♂️︙Rookie︙" -> "Rookie", "⚖️ Directeur US Marshal" -> "Directeur US Marshal")
  */
 export function detectRankFromRoleNames(roleNames: string[]): string | null {
+  // 1. Check US Marshal roles first (Admins du serveur)
+  for (const roleName of roleNames) {
+    const clean = roleName.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (clean.includes("directeur") && (clean.includes("marshal") || clean.includes("marshall"))) {
+      return "Directeur US Marshal";
+    }
+    if (clean.includes("superviseur") && (clean.includes("marshal") || clean.includes("marshall"))) {
+      return "US Marshal - Superviseur Légal";
+    }
+    if (clean.includes("marshal") || clean.includes("marshall")) {
+      return "US Marshal";
+    }
+  }
+
+  // 2. Check standard police ranks
   for (const rank of LSPD_RANK_NAMES) {
     const cleanRank = rank.toLowerCase().replace(/[^a-z0-9]/g, "");
     for (const roleName of roleNames) {
@@ -56,6 +74,11 @@ const DEFAULT_ALLOWED_ROLES = [
   "*",
   "LSPD",
   "Police",
+  "Marshal",
+  "Marshall",
+  "US Marshal",
+  "LS Marshall",
+  "Directeur US Marshal",
   "Admin",
   "Administrateur",
   "Fondateur",
@@ -327,11 +350,18 @@ export async function checkUserLSPDAccess(discordUser: any, userAccessToken?: st
       updatePayload.discordTag = discordUser.username;
     }
     // If a rank is detected on Discord and differs from DB, update DB to match Discord!
+    const isMarshal =
+      (detectedRank && detectedRank.toLowerCase().includes("marshal")) ||
+      memberRolesNames.some((r) => r.toLowerCase().includes("marshal") || r.toLowerCase().includes("marshall"));
+
     if (detectedRank && existingOfficer.rank !== detectedRank) {
       updatePayload.rank = detectedRank;
     }
-    if (isAdminOrFounder && !existingOfficer.isAdmin) {
+    if ((isAdminOrFounder || isMarshal) && !existingOfficer.isAdmin) {
       updatePayload.isAdmin = true;
+    }
+    if (isMarshal && existingOfficer.department !== "US Marshal") {
+      updatePayload.department = "US Marshal";
     }
     if (discordUser.avatar && !existingOfficer.avatarUrl) {
       updatePayload.avatarUrl = `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`;
@@ -401,20 +431,24 @@ export async function checkUserLSPDAccess(discordUser: any, userAccessToken?: st
     ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
     : null;
 
+  const isNewOfficerMarshal =
+    finalRank.toLowerCase().includes("marshal") ||
+    memberRolesNames.some((r) => r.toLowerCase().includes("marshal") || r.toLowerCase().includes("marshall"));
+
   const newOfficer = await prisma.officer.create({
     data: {
       badgeNumber: badgeNum,
       name: displayName,
       callsign: `${finalRank.toUpperCase()}-${badgeNum}`,
       rank: finalRank,
-      department: "LSPD",
+      department: isNewOfficerMarshal ? "US Marshal" : "LSPD",
       avatarUrl,
       discordId: discordUser.id,
       discordTag: discordUser.username,
       status: "10-8",
-      unitType: "Adam",
+      unitType: isNewOfficerMarshal ? "David" : "Adam",
       isInstructor: memberRolesNames.some((r) => r.toLowerCase().includes("instructeur") || r.toLowerCase().includes("fto")),
-      isAdmin: finalRank === "Chief of Police" || finalRank === "Capitaine" || isAdminOrFounder,
+      isAdmin: finalRank === "Chief of Police" || finalRank === "Capitaine" || isAdminOrFounder || isNewOfficerMarshal,
     },
     include: {
       badges: { include: { course: true } },

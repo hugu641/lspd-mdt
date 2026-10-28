@@ -20,7 +20,6 @@ import {
   LogOut,
   Menu,
   X,
-  CheckCircle2,
   Clock,
   Sparkles,
 } from "lucide-react";
@@ -36,9 +35,8 @@ interface NavGroup {
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { currentOfficer, allOfficers, setCurrentOfficer, logout } = useOfficer();
+  const { currentOfficer, logout } = useOfficer();
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [showOfficerSwitcher, setShowOfficerSwitcher] = useState(false);
   const [departmentMode, setDepartmentMode] = useState<"POLICE" | "EMS">("POLICE");
 
   // On login page, render full screen without dashboard shell
@@ -251,75 +249,26 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
               <span className="hidden xs:inline">Déconnexion</span>
             </button>
 
-            {/* User Pill Card (Hugo Derma • S.F.M.C [HD]) */}
+            {/* User Pill Card */}
             {currentOfficer && (
-              <div className="relative">
-                <button
-                  onClick={() => setShowOfficerSwitcher(!showOfficerSwitcher)}
-                  className="flex items-center gap-2.5 pl-3 pr-1.5 py-1 rounded-full bg-[#0e101f] border border-[#1f233f] hover:border-purple-500/50 transition-all text-left"
-                >
-                  <div className="text-right hidden sm:block">
-                    <div className="text-xs font-black text-white leading-tight">
-                      {currentOfficer.name}
-                    </div>
-                    <div className="text-[10px] text-slate-400 font-medium leading-none mt-0.5">
-                      {departmentMode === "POLICE" ? "Central Police LSPD" : "Saint Fiacre Medical Center"}
-                    </div>
+              <div className="flex items-center gap-2.5 pl-3 pr-1.5 py-1 rounded-full bg-[#0e101f] border border-[#1f233f]">
+                <div className="text-right hidden sm:block">
+                  <div className="text-xs font-black text-white leading-tight">
+                    {currentOfficer.name}
                   </div>
-
-                  {/* Initials Circle Avatar [HD] */}
-                  <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-600 via-sky-500 to-indigo-600 flex items-center justify-center text-white font-black text-xs shadow-md border border-white/20">
-                    {getInitials(currentOfficer.name)}
+                  <div className="text-[10px] text-slate-400 font-medium leading-none mt-0.5">
+                    {currentOfficer.department === "US Marshal"
+                      ? "US Marshal Service"
+                      : departmentMode === "POLICE"
+                      ? "Central Police LSPD"
+                      : "Saint Fiacre Medical Center"}
                   </div>
-                </button>
+                </div>
 
-                {/* Switcher Dropdown */}
-                {showOfficerSwitcher && (
-                  <div className="absolute right-0 mt-2 w-72 rounded-2xl bg-[#0d0f1c] border border-[#1f233f] shadow-2xl p-2 z-50 animate-fade-in">
-                    <div className="px-3 py-2 border-b border-[#191c33]">
-                      <div className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                        Agents disponibles
-                      </div>
-                    </div>
-                    <div className="p-1 space-y-1 max-h-60 overflow-y-auto">
-                      {allOfficers.map((officer) => (
-                        <button
-                          key={officer.id}
-                          onClick={() => {
-                            setCurrentOfficer(officer);
-                            setShowOfficerSwitcher(false);
-                          }}
-                          className={`w-full flex items-center justify-between p-2 rounded-xl text-left transition-all ${
-                            currentOfficer.id === officer.id
-                              ? "bg-[#1d163a] text-purple-200 border border-purple-500/40"
-                              : "text-slate-300 hover:bg-[#131528]"
-                          }`}
-                        >
-                          <div>
-                            <div className="text-xs font-bold">{officer.name}</div>
-                            <div className="text-[10px] text-slate-400">{officer.rank} • #{officer.badgeNumber}</div>
-                          </div>
-                          {currentOfficer.id === officer.id && (
-                            <CheckCircle2 className="w-4 h-4 text-purple-400" />
-                          )}
-                        </button>
-                      ))}
-                    </div>
-
-                    <div className="p-1 pt-2 border-t border-[#191c33]">
-                      <button
-                        onClick={() => {
-                          setShowOfficerSwitcher(false);
-                          logout();
-                        }}
-                        className="w-full flex items-center justify-center gap-1.5 p-2 rounded-xl text-xs font-bold text-rose-400 hover:text-rose-200 hover:bg-rose-950/40 border border-rose-900/40 transition-all"
-                      >
-                        <LogOut className="w-3.5 h-3.5" />
-                        <span>Fermer la session (Déconnexion)</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
+                {/* Initials Circle Avatar [HD] */}
+                <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-cyan-600 via-sky-500 to-indigo-600 flex items-center justify-center text-white font-black text-xs shadow-md border border-white/20">
+                  {getInitials(currentOfficer.name)}
+                </div>
               </div>
             )}
           </div>

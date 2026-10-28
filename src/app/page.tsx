@@ -5,7 +5,6 @@ import Link from "next/link";
 import { useOfficer } from "../context/OfficerContext";
 import {
   Shield,
-  Users,
   Calendar,
   Clock,
   ChevronLeft,
@@ -34,7 +33,7 @@ import {
   Layers,
 } from "lucide-react";
 
-// Official 14 Ranks of the LSPD in hierarchical order
+// Official Ranks of the LSPD and US Marshal in hierarchical order
 const LSPD_RANKS = [
   { id: "rookie", name: "Rookie", level: 1, category: "Période Probatoire", stars: "★", description: "Cadet en formation probatoire sur le terrain" },
   { id: "officier_1", name: "Officier I", level: 2, category: "Corps de Patrouille", stars: "★★", description: "Agent titulaire de patrouille" },
@@ -50,15 +49,17 @@ const LSPD_RANKS = [
   { id: "deputy_chief", name: "Deputy-Chief", level: 12, category: "Haut Commandement", stars: "❖", description: "Adjoint au Haut Commandement LSPD" },
   { id: "assistant_chief", name: "Assistant-Chief", level: 13, category: "Haut Commandement", stars: "❖❖", description: "Chef adjoint de la police métropolitaine" },
   { id: "chief", name: "Chief of Police", level: 14, category: "Commandement Suprême", stars: "✪✪✪", description: "Directeur général du Los Santos Police Department" },
+  { id: "marshal", name: "US Marshal", level: 15, category: "Administration Fédérale", stars: "⚖️", description: "Agent fédéral et administration du serveur" },
+  { id: "marshal_sup", name: "US Marshal - Superviseur Légal", level: 16, category: "Administration Fédérale", stars: "⚖️⚖️", description: "Superviseur légal fédéral et administration" },
+  { id: "marshal_dir", name: "Directeur US Marshal", level: 17, category: "Haute Administration Fédérale", stars: "⚖️⚖️⚖️", description: "Directeur général des US Marshals et administrateur du serveur" },
 ];
 
 export default function DashboardPage() {
-  const { currentOfficer, allOfficers, setCurrentOfficer } = useOfficer();
+  const { currentOfficer } = useOfficer();
   const [warrants, setWarrants] = useState<any[]>([]);
   const [recentCitations, setRecentCitations] = useState<any[]>([]);
   const [trainingSessions, setTrainingSessions] = useState<any[]>([]);
   const [showRanksExpanded, setShowRanksExpanded] = useState(false);
-  const [showOfficerPicker, setShowOfficerPicker] = useState(false);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [editingPhoto, setEditingPhoto] = useState(false);
   const [customPhotoInput, setCustomPhotoInput] = useState("");
@@ -177,55 +178,9 @@ export default function DashboardPage() {
                 CARTE D&apos;IDENTITÉ PROFESSIONNELLE
               </span>
               <span className="text-[9px] px-2 py-0.2 rounded-full bg-purple-950/80 text-purple-300 border border-purple-500/30 font-mono font-bold">
-                LSPD
+                {currentOfficer?.department === "US Marshal" ? "US MARSHAL" : "LSPD"}
               </span>
             </div>
-          </div>
-
-          {/* Quick Officer Switcher */}
-          <div className="relative">
-            <button
-              onClick={() => setShowOfficerPicker(!showOfficerPicker)}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#12152a] hover:bg-[#1a1f3d] border border-purple-500/30 text-[11px] font-bold text-purple-300 hover:text-white transition-all shadow-sm"
-            >
-              <Users className="w-3 h-3 text-purple-400" />
-              <span>Changer d&apos;agent</span>
-              <ChevronDown className="w-3 h-3 text-slate-400" />
-            </button>
-
-            {showOfficerPicker && (
-              <div className="absolute right-0 mt-2 w-60 rounded-xl bg-[#0c0e1e] border border-purple-500/40 shadow-2xl p-2 z-50 divide-y divide-[#171a33]">
-                <div className="px-2 py-1 text-[9px] font-bold text-slate-400 uppercase tracking-wider">
-                  Sélectionner un effectif
-                </div>
-                <div className="py-1 max-h-52 overflow-y-auto space-y-1">
-                  {allOfficers.map((off) => (
-                    <button
-                      key={off.id}
-                      onClick={() => {
-                        setCurrentOfficer(off);
-                        setShowOfficerPicker(false);
-                      }}
-                      className={`w-full flex items-center justify-between p-1.5 rounded-lg text-left text-xs transition-all ${
-                        currentOfficer?.id === off.id
-                          ? "bg-purple-900/40 text-purple-200 border border-purple-500/50"
-                          : "text-slate-300 hover:bg-[#141730]"
-                      }`}
-                    >
-                      <div className="truncate">
-                        <div className="font-bold text-white truncate">{off.name}</div>
-                        <div className="text-[10px] text-slate-400 font-mono">
-                          #{off.badgeNumber} • {off.rank}
-                        </div>
-                      </div>
-                      {currentOfficer?.id === off.id && (
-                        <Check className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
-                      )}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
           </div>
         </div>
 
