@@ -264,7 +264,14 @@ async function main() {
     },
   });
 
-  // Assign some badges to existing officers
+  // Assign badges to existing officers
+  // Chief holds all major qualifications
+  await prisma.officerBadge.create({ data: { officerId: chief.id, courseId: courseEVOC.id, awardedBy: "Commission SAPR" } });
+  await prisma.officerBadge.create({ data: { officerId: chief.id, courseId: courseAir.id, awardedBy: "Commission SAPR" } });
+  await prisma.officerBadge.create({ data: { officerId: chief.id, courseId: courseSWAT.id, awardedBy: "Commission SAPR" } });
+  await prisma.officerBadge.create({ data: { officerId: chief.id, courseId: courseK9.id, awardedBy: "Commission SAPR" } });
+  await prisma.officerBadge.create({ data: { officerId: chief.id, courseId: courseFTO.id, awardedBy: "Commission SAPR" } });
+
   await prisma.officerBadge.create({
     data: { officerId: captain.id, courseId: courseEVOC.id, awardedBy: chief.name },
   });
