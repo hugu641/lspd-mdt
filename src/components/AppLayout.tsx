@@ -4,7 +4,6 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useOfficer } from "../context/OfficerContext";
-import { ThemeSwitcher } from "./ThemeSwitcher";
 import {
   LayoutDashboard,
   Radio,
@@ -235,11 +234,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          {/* Right Controls: Theme, Logout & User Pill */}
+          {/* Right Controls: Logout & User Pill */}
           <div className="flex items-center gap-2.5 sm:gap-3.5">
-            {/* Theme Switcher */}
-            <ThemeSwitcher />
-
             {/* Logout / Switch Button ([-> Déconnexion]) */}
             <button
               onClick={() => setShowOfficerSwitcher(!showOfficerSwitcher)}

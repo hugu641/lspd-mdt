@@ -81,7 +81,8 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
       setThemeState(saved);
       document.documentElement.setAttribute("data-theme", saved);
     } else {
-      document.documentElement.setAttribute("data-theme", "gold");
+      setThemeState("violet");
+      document.documentElement.setAttribute("data-theme", "violet");
     }
   }, []);
 

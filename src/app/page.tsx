@@ -400,7 +400,7 @@ export default function DashboardPage() {
                 </span>
               </div>
 
-              {/* Secondary info strip (Department, Unit, Phone, Callsign - NO FTO) */}
+              {/* Secondary info strip (Department, Unit, Phone, Callsign, FTO) */}
               <div className="flex items-center gap-2 sm:gap-3 text-[11px] text-slate-400 flex-wrap mt-0.5">
                 <span>{currentOfficer?.department || "LSPD"}</span>
                 <span>•</span>
@@ -409,6 +409,14 @@ export default function DashboardPage() {
                 <span>Unité : <strong className="text-slate-200">{currentOfficer?.unitType || "Lincoln"}</strong></span>
                 <span>•</span>
                 <span className="font-mono text-slate-300">Tél : {currentOfficer?.phone || "555-0100"}</span>
+                {currentOfficer?.isInstructor && (
+                  <>
+                    <span>•</span>
+                    <span className="text-amber-400 font-bold flex items-center gap-1">
+                      <span>★ Instructeur FTO</span>
+                    </span>
+                  </>
+                )}
               </div>
             </div>
           </div>
