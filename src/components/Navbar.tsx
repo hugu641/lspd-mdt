@@ -5,7 +5,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useOfficer } from "../context/OfficerContext";
 import { useTheme } from "../context/ThemeContext";
-import { ThemeSwitcher } from "@/components/ThemeSwitcher";
+import { ThemeSwitcher } from "./ThemeSwitcher";
 import {
   Shield,
   Users,
