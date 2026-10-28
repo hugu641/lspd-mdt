@@ -367,6 +367,14 @@ export async function checkUserLSPDAccess(discordUser: any, userAccessToken?: st
       updatePayload.avatarUrl = `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`;
     }
 
+    const hasRecruiterRole = memberRolesNames.some((r) => {
+      const lower = r.toLowerCase().trim();
+      return lower.includes("recruteur") || lower.includes("recrutement");
+    });
+    if (hasRecruiterRole && !existingOfficer.isRecruiter) {
+      updatePayload.isRecruiter = true;
+    }
+
     // Ensure badgeNumber is in sync with name if formatted as "04 | Hugo Derma" (LSPD only)
     if (!isMarshal) {
       const nameBadgeMatch = existingOfficer.name.match(/^(\d{1,4})\s*\|/);
@@ -462,6 +470,7 @@ export async function checkUserLSPDAccess(discordUser: any, userAccessToken?: st
       status: "10-8",
       unitType: isNewOfficerMarshal ? "David" : "Adam",
       isInstructor: memberRolesNames.some((r) => r.toLowerCase().includes("instructeur") || r.toLowerCase().includes("fto")),
+      isRecruiter: memberRolesNames.some((r) => r.toLowerCase().includes("recruteur") || r.toLowerCase().includes("recrutement")),
       isAdmin:
         finalRank === "Chief of Police" ||
         finalRank === "Assistant-Chief" ||
@@ -747,6 +756,7 @@ export async function syncOfficerDiscordRoles(officer: {
   rank: string;
   department?: string;
   isInstructor?: boolean;
+  isRecruiter?: boolean;
 }) {
   const config = await getDiscordConfig();
   const token = config.botToken;
@@ -872,6 +882,26 @@ export async function syncOfficerDiscordRoles(officer: {
           }
         );
         addedRoles.push(ftoRole.name);
+      }
+    }
+
+    // 8. Ensure Recruiter role if applicable
+    if (officer.isRecruiter) {
+      const recruiterRole = allRoles.find(
+        (r) =>
+          r.name.toLowerCase().trim() === "recruteur lspd" ||
+          r.name.toLowerCase().trim() === "recruteur" ||
+          r.name.toLowerCase().trim() === "division recrutement"
+      );
+      if (recruiterRole && !currentMemberRoleIds.includes(recruiterRole.id)) {
+        await fetch(
+          `https://discord.com/api/v10/guilds/${guildId}/members/${cleanUserId}/roles/${recruiterRole.id}`,
+          {
+            method: "PUT",
+            headers: { Authorization: `Bot ${token}` },
+          }
+        );
+        addedRoles.push(recruiterRole.name);
       }
     }
 
@@ -1031,5 +1061,92 @@ export async function updateDiscordMemberNickname(discordId: string, newNickname
   } catch (err: any) {
     console.error("updateDiscordMemberNickname error:", err);
     return { success: false, error: err?.message || "Erreur de modification du pseudo Discord" };
+  }
+}
+
+/**
+ * Request to Discord Bot API to create or verify the Recruiter role on the Discord Server
+ */
+export async function createOrEnsureRecruiterRole() {
+  const config = await getDiscordConfig();
+  const token = config.botToken;
+  const guildId = config.guildId;
+
+  if (!token || !guildId) {
+    return {
+      success: false,
+      error: "Bot Discord ou Serveur Discord non configuré dans l'Administration.",
+    };
+  }
+
+  try {
+    // 1. Fetch current server roles
+    const rolesRes = await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
+      headers: { Authorization: `Bot ${token}` },
+    });
+
+    if (!rolesRes.ok) {
+      const errText = await rolesRes.text();
+      return {
+        success: false,
+        error: `Erreur API Discord (${rolesRes.status}) lors de la lecture des rôles: ${errText}`,
+      };
+    }
+
+    const allRoles: any[] = await rolesRes.json();
+
+    // 2. Check if Recruiter role already exists
+    const existing = allRoles.find(
+      (r) =>
+        r.name.toLowerCase().trim() === "recruteur lspd" ||
+        r.name.toLowerCase().trim() === "recruteur" ||
+        r.name.toLowerCase().trim() === "division recrutement"
+    );
+
+    if (existing) {
+      return {
+        success: true,
+        created: false,
+        role: existing,
+        message: `Le rôle Discord "${existing.name}" est déjà présent sur le serveur (ID: ${existing.id}).`,
+      };
+    }
+
+    // 3. Create the role via Discord Bot API
+    const createRes = await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bot ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Recruteur LSPD",
+        color: 0x9333ea, // Cyber Violet
+        hoist: true,
+        mentionable: true,
+      }),
+    });
+
+    if (!createRes.ok) {
+      const errJson = await createRes.json().catch(() => ({}));
+      return {
+        success: false,
+        error: `Échec de création du rôle sur Discord (${createRes.status}): ${JSON.stringify(errJson)}`,
+      };
+    }
+
+    const createdRole = await createRes.json();
+    return {
+      success: true,
+      created: true,
+      role: createdRole,
+      message: `Rôle "${createdRole.name}" créé avec succès sur Discord (ID: ${createdRole.id}) !`,
+    };
+  } catch (err: any) {
+    console.error("createOrEnsureRecruiterRole error:", err);
+    return {
+      success: false,
+      error: err?.message || "Erreur de connexion à l'API Discord.",
+    };
   }
 }

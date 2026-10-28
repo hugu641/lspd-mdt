@@ -21,6 +21,7 @@ model Officer {
   status          String   @default("10-10") // 10-8, 10-7, 10-6, 10-10
   unitType        String   @default("Lincoln") // Lincoln, Adam, Tango, Mary, Henry, David, Nora
   isInstructor    Boolean  @default(false)
+  isRecruiter     Boolean  @default(false)
   isAdmin         Boolean  @default(false)
   discordId       String?  // ID Discord de l'agent (17-19 chiffres)
   discordTag      String?  // Pseudo / Tag Discord (ex: hugu641)
@@ -35,6 +36,7 @@ model Officer {
   instructedTrainings TrainingSession[]
   registrations   TrainingRegistration[]
   createdCourses  TrainingCourse[]
+  candidateReviews RecruitmentCandidate[]
 }
 
 model Citizen {
@@ -256,4 +258,24 @@ model DiscordSetting {
   allowedRoles     String?  // Rôles autorisés (ex: "LSPD,Police,Rookie,Officier I,Officier II...")
   roleMappings     String?  // JSON stringified role mapping { "Chief of Police": "role_id", ... }
   updatedAt        DateTime @updatedAt
+}
+
+model RecruitmentCandidate {
+  id              String    @id @default(cuid())
+  firstName       String
+  lastName        String
+  phone           String?
+  discordTag      String?
+  discordId       String?
+  age             Int?
+  motivation      String?
+  experience      String?
+  status          String    @default("En attente") // En attente, Entretien prévu, Accepté, Refusé
+  interviewDate   DateTime?
+  interviewNotes  String?
+  decisionReason  String?
+  recruiterId     String?
+  recruiter       Officer?  @relation(fields: [recruiterId], references: [id], onDelete: SetNull)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 }

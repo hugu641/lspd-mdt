@@ -4,6 +4,7 @@ import React, { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useOfficer } from "../context/OfficerContext";
+import { hasRecruitmentAccess } from "../lib/recruitmentAuth";
 import {
   LayoutDashboard,
   Radio,
@@ -24,6 +25,7 @@ import {
   Sparkles,
   Phone,
   Check,
+  UserPlus,
 } from "lucide-react";
 
 interface NavGroup {
@@ -223,6 +225,16 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         { href: "/trainings", label: "Planning Formations", icon: GraduationCap },
       ],
     },
+    ...(hasRecruitmentAccess(currentOfficer)
+      ? [
+          {
+            name: "RECRUTEMENT",
+            items: [
+              { href: "/recruitment", label: "Pôle Recrutement", icon: UserPlus },
+            ],
+          },
+        ]
+      : []),
     {
       name: "ADMINISTRATION",
       items: [
