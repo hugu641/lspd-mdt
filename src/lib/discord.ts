@@ -111,6 +111,32 @@ export async function getDiscordConfig(): Promise<DiscordConfig> {
 }
 
 /**
+ * Compute the canonical OAuth2 Redirect URI from the incoming request.
+ * Behind reverse proxies (Render, Heroku, Cloudflare, etc.), req.url protocol is "http:".
+ * This helper guarantees "https://" for all non-localhost domains so Discord never rejects it.
+ */
+export function getRequestRedirectUri(req: Request): string {
+  const envUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
+  if (envUrl) {
+    const cleanUrl = envUrl.trim().replace(/\/+$/, "");
+    return `${cleanUrl}/api/auth/discord/callback`;
+  }
+
+  const url = new URL(req.url);
+  const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || url.host;
+  const isLocal = host.includes("localhost") || host.includes("127.0.0.1");
+
+  let proto: string;
+  if (isLocal) {
+    proto = req.headers.get("x-forwarded-proto") || url.protocol.replace(":", "") || "http";
+  } else {
+    proto = "https";
+  }
+
+  return `${proto}://${host}/api/auth/discord/callback`;
+}
+
+/**
  * Generate Discord OAuth2 Authorization URL
  */
 export async function getDiscordOAuthUrl(redirectUri: string) {

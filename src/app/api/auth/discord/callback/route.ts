@@ -4,6 +4,7 @@ import {
   getDiscordUser,
   checkUserLSPDAccess,
   createSessionToken,
+  getRequestRedirectUri,
 } from "../../../../../lib/discord";
 
 export const dynamic = "force-dynamic";
@@ -12,7 +13,7 @@ export async function GET(req: Request) {
   const url = new URL(req.url);
   const code = url.searchParams.get("code");
   const errorParam = url.searchParams.get("error");
-  const redirectUri = `${url.origin}/api/auth/discord/callback`;
+  const redirectUri = getRequestRedirectUri(req);
 
   if (errorParam || !code) {
     const desc = url.searchParams.get("error_description") || "Connexion annulée ou refusée par l'utilisateur.";

@@ -1,13 +1,12 @@
 import { NextResponse } from "next/server";
-import { getDiscordConfig, getDiscordOAuthUrl } from "../../../../../lib/discord";
+import { getDiscordConfig, getDiscordOAuthUrl, getRequestRedirectUri } from "../../../../../lib/discord";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
   try {
     const config = await getDiscordConfig();
-    const url = new URL(req.url);
-    const redirectUri = `${url.origin}/api/auth/discord/callback`;
+    const redirectUri = getRequestRedirectUri(req);
 
     if (!config.clientId) {
       return NextResponse.redirect(
