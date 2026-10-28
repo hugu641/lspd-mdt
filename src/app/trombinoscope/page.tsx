@@ -473,7 +473,7 @@ export default function TrombinoscopePage() {
                     {officer.name}
                   </h3>
                   <div className="text-[11px] font-mono text-purple-400 font-bold mt-0.5">
-                    #{officer.badgeNumber} • {officer.callsign}
+                    Matricule #{officer.badgeNumber}
                   </div>
                   <div className="mt-1">
                     <span

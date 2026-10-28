@@ -385,17 +385,10 @@ export default function OfficerProfilePage() {
               <span className="font-bold text-white px-2.5 py-1 rounded-xl bg-[#121633] border border-[#232b5e]">
                 {officer.rank}
               </span>
-              <span className="font-mono text-purple-300">
-                Indicatif : <strong>{officer.callsign}</strong>
-              </span>
-              <span className="text-slate-600">•</span>
-              <span className="text-slate-400">
-                Affectation : <strong>Unité {officer.unitType || "Adam"}</strong>
-              </span>
             </div>
 
             {/* Quick Contact Badges */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 pt-2">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 pt-2">
               {/* Phone IG */}
               <div
                 onClick={() =>
@@ -432,33 +425,6 @@ export default function OfficerProfilePage() {
                   </div>
                 </div>
                 {officer.discordTag && <Copy className="w-3.5 h-3.5 text-slate-500 group-hover:text-white" />}
-              </div>
-
-              {/* Radio Status */}
-              <div className="p-2.5 rounded-xl bg-[#0c0e20] border border-[#1a1f3c] flex items-center gap-2">
-                <span
-                  className={`w-3 h-3 rounded-full ${
-                    officer.status === "10-8"
-                      ? "bg-emerald-400 animate-pulse shadow-[0_0_8px_#10b981]"
-                      : officer.status === "10-7"
-                      ? "bg-amber-400"
-                      : officer.status === "10-6"
-                      ? "bg-yellow-400"
-                      : "bg-slate-600"
-                  }`}
-                />
-                <div>
-                  <div className="text-[9px] text-slate-400 font-bold uppercase">Statut Radio</div>
-                  <div className="text-xs font-black text-white font-mono">
-                    {officer.status === "10-8"
-                      ? "10-8 • En Service"
-                      : officer.status === "10-7"
-                      ? "10-7 • En Pause"
-                      : officer.status === "10-6"
-                      ? "10-6 • Occupé"
-                      : "10-10 • Fin de service"}
-                  </div>
-                </div>
               </div>
             </div>
           </div>
