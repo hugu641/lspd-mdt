@@ -2,8 +2,14 @@
   "channels": {
     "defcon": "",
     "logs": "",
+    "logs_messages": "",
     "salaires": "",
     "annonces": ""
+  },
+  "logging": {
+    "messageDelete": true,
+    "messageUpdate": true,
+    "messageCreate": false
   },
   "roles": {
     "adminRoleIds": [],
@@ -27,6 +33,25 @@
       "name": "codes",
       "response": "📋 **LEXIQUE DES CODES RADIO LSPD :**\n> • **10-4 :** Reçu / Compris\n> • **10-6 :** Occupé temporairement\n> • **10-8 :** En service / Disponible patrouille\n> • **10-10 :** Fin de service\n> • **10-20 :** Position / Localisation actuelle\n> • **Code 0 :** URGENCE CRITIQUE — Officier à terre / en danger de mort\n> • **Code 2 :** Intervention urgente sans sirène\n> • **Code 3 :** Urgence gyrophares + deux-tons\n> • **Code 5 :** Contrôle routier sous haute surveillance",
       "description": "Affiche le lexique des codes 10 et d'urgence"
+    },
+    "rookie": {
+      "name": "rookie",
+      "type": "role_action",
+      "response": "🎖️ **AFFECTATION ROOKIE :** L'agent {user} a reçu son paquetage !",
+      "description": "Pack de rôles Rookie",
+      "addRoleIds": [
+        "1564955433968472114",
+        "1564955435885273189",
+        "1564955461885632642",
+        "1564955457737588756",
+        "1564955451475624037",
+        "1564955438858899546",
+        "1564955434949804152",
+        "1564955448002744461",
+        "1564955430608830464"
+      ],
+      "removeRoleIds": [],
+      "updatedAt": "2026-10-28T16:22:56.053Z"
     }
   }
 }

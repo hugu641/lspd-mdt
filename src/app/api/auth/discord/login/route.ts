@@ -1,16 +1,22 @@
 import { NextResponse } from "next/server";
-import { getDiscordConfig, getDiscordOAuthUrl, getRequestRedirectUri } from "../../../../../lib/discord";
+import {
+  getDiscordConfig,
+  getDiscordOAuthUrl,
+  getRequestRedirectUri,
+  getRequestBaseUrl,
+} from "../../../../../lib/discord";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(req: Request) {
+  const baseUrl = getRequestBaseUrl(req);
   try {
     const config = await getDiscordConfig();
     const redirectUri = getRequestRedirectUri(req);
 
     if (!config.clientId) {
       return NextResponse.redirect(
-        new URL("/login?error=" + encodeURIComponent("Client ID Discord non configuré dans l'administration."), req.url)
+        `${baseUrl}/login?error=${encodeURIComponent("Client ID Discord non configuré dans l'administration.")}`
       );
     }
 
@@ -19,7 +25,7 @@ export async function GET(req: Request) {
   } catch (error: any) {
     console.error("Discord login error:", error);
     return NextResponse.redirect(
-      new URL("/login?error=" + encodeURIComponent(error?.message || "Erreur de redirection Discord"), req.url)
+      `${baseUrl}/login?error=${encodeURIComponent(error?.message || "Erreur de redirection Discord")}`
     );
   }
 }

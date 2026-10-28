@@ -5,6 +5,7 @@ import {
   checkUserLSPDAccess,
   createSessionToken,
   getRequestRedirectUri,
+  getRequestBaseUrl,
 } from "../../../../../lib/discord";
 
 export const dynamic = "force-dynamic";
@@ -14,10 +15,11 @@ export async function GET(req: Request) {
   const code = url.searchParams.get("code");
   const errorParam = url.searchParams.get("error");
   const redirectUri = getRequestRedirectUri(req);
+  const baseUrl = getRequestBaseUrl(req);
 
   if (errorParam || !code) {
     const desc = url.searchParams.get("error_description") || "Connexion annulée ou refusée par l'utilisateur.";
-    return NextResponse.redirect(new URL(`/login?error=${encodeURIComponent(desc)}`, req.url));
+    return NextResponse.redirect(`${baseUrl}/login?error=${encodeURIComponent(desc)}`);
   }
 
   try {
@@ -32,7 +34,7 @@ export async function GET(req: Request) {
 
     if (!accessCheck.allowed) {
       return NextResponse.redirect(
-        new URL(`/login?error=${encodeURIComponent(accessCheck.reason || "Accès refusé.")}`, req.url)
+        `${baseUrl}/login?error=${encodeURIComponent(accessCheck.reason || "Accès refusé.")}`
       );
     }
 
@@ -47,8 +49,8 @@ export async function GET(req: Request) {
       name: officer?.name || discordUser.username,
     });
 
-    // 5. Create Response with HTTP-Only Cookie and redirect to Dashboard
-    const response = NextResponse.redirect(new URL("/", req.url));
+    // 5. Create Response with HTTP-Only Cookie and redirect to Dashboard on canonical domain
+    const response = NextResponse.redirect(`${baseUrl}/`);
     response.cookies.set("lspd_session", sessionToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === "production",
@@ -61,7 +63,7 @@ export async function GET(req: Request) {
   } catch (error: any) {
     console.error("Discord callback processing error:", error);
     return NextResponse.redirect(
-      new URL(`/login?error=${encodeURIComponent(error?.message || "Erreur interne lors de la connexion Discord")}`, req.url)
+      `${baseUrl}/login?error=${encodeURIComponent(error?.message || "Erreur interne lors de la connexion Discord")}`
     );
   }
 }

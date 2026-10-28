@@ -119,29 +119,47 @@ export async function getDiscordConfig(): Promise<DiscordConfig> {
 }
 
 /**
- * Compute the canonical OAuth2 Redirect URI from the incoming request.
- * Behind reverse proxies (Render, Heroku, Cloudflare, etc.), req.url protocol is "http:".
- * This helper guarantees "https://" for all non-localhost domains so Discord never rejects it.
+ * Compute the canonical Base URL from the incoming request.
+ * On Render / Docker, req.url is "http://localhost:10000".
+ * This helper resolves the real public domain (e.g. "https://ruby-mdt.onrender.com").
  */
-export function getRequestRedirectUri(req: Request): string {
-  const envUrl = process.env.NEXTAUTH_URL || process.env.NEXT_PUBLIC_APP_URL || process.env.APP_URL;
+export function getRequestBaseUrl(req: Request): string {
+  const envUrl =
+    process.env.NEXTAUTH_URL ||
+    process.env.NEXT_PUBLIC_APP_URL ||
+    process.env.APP_URL ||
+    process.env.RENDER_EXTERNAL_URL;
   if (envUrl) {
-    const cleanUrl = envUrl.trim().replace(/\/+$/, "");
-    return `${cleanUrl}/api/auth/discord/callback`;
+    return envUrl.trim().replace(/\/+$/, "");
+  }
+
+  const forwardedHost = req.headers.get("x-forwarded-host");
+  const hostHeader = req.headers.get("host");
+  const host = forwardedHost || hostHeader;
+
+  if (host && !host.includes("localhost") && !host.includes("127.0.0.1") && !host.includes(":10000")) {
+    return `https://${host}`;
   }
 
   const url = new URL(req.url);
-  const host = req.headers.get("x-forwarded-host") || req.headers.get("host") || url.host;
-  const isLocal = host.includes("localhost") || host.includes("127.0.0.1");
-
-  let proto: string;
-  if (isLocal) {
-    proto = req.headers.get("x-forwarded-proto") || url.protocol.replace(":", "") || "http";
-  } else {
-    proto = "https";
+  if (url.port === "10000" || (host && host.includes("10000"))) {
+    return "https://ruby-mdt.onrender.com";
   }
 
-  return `${proto}://${host}/api/auth/discord/callback`;
+  const isLocal = !host || host.includes("localhost") || host.includes("127.0.0.1");
+  if (isLocal) {
+    return `http://${host || "localhost:3000"}`;
+  }
+
+  return `https://${host}`;
+}
+
+/**
+ * Compute the canonical OAuth2 Redirect URI from the incoming request.
+ */
+export function getRequestRedirectUri(req: Request): string {
+  const baseUrl = getRequestBaseUrl(req);
+  return `${baseUrl}/api/auth/discord/callback`;
 }
 
 /**
