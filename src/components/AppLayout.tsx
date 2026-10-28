@@ -36,10 +36,15 @@ interface NavGroup {
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { currentOfficer, allOfficers, setCurrentOfficer } = useOfficer();
+  const { currentOfficer, allOfficers, setCurrentOfficer, logout } = useOfficer();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [showOfficerSwitcher, setShowOfficerSwitcher] = useState(false);
   const [departmentMode, setDepartmentMode] = useState<"POLICE" | "EMS">("POLICE");
+
+  // On login page, render full screen without dashboard shell
+  if (pathname === "/login") {
+    return <main className="min-h-screen bg-[#07080f]">{children}</main>;
+  }
 
   const navGroups: NavGroup[] = [
     {
@@ -236,13 +241,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
           {/* Right Controls: Logout & User Pill */}
           <div className="flex items-center gap-2.5 sm:gap-3.5">
-            {/* Logout / Switch Button ([-> Déconnexion]) */}
+            {/* Logout Button */}
             <button
-              onClick={() => setShowOfficerSwitcher(!showOfficerSwitcher)}
+              onClick={() => logout()}
               className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1e0e13] border border-rose-900/60 hover:bg-rose-950 text-rose-300 hover:text-rose-100 text-xs font-bold transition-all shadow-sm"
+              title="Fermer la session"
             >
               <LogOut className="w-3.5 h-3.5 text-rose-400" />
-              <span className="hidden xs:inline">Changer d&apos;agent</span>
+              <span className="hidden xs:inline">Déconnexion</span>
             </button>
 
             {/* User Pill Card (Hugo Derma • S.F.M.C [HD]) */}
@@ -298,6 +304,19 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                           )}
                         </button>
                       ))}
+                    </div>
+
+                    <div className="p-1 pt-2 border-t border-[#191c33]">
+                      <button
+                        onClick={() => {
+                          setShowOfficerSwitcher(false);
+                          logout();
+                        }}
+                        className="w-full flex items-center justify-center gap-1.5 p-2 rounded-xl text-xs font-bold text-rose-400 hover:text-rose-200 hover:bg-rose-950/40 border border-rose-900/40 transition-all"
+                      >
+                        <LogOut className="w-3.5 h-3.5" />
+                        <span>Fermer la session (Déconnexion)</span>
+                      </button>
                     </div>
                   </div>
                 )}

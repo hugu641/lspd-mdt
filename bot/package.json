@@ -1,7 +1,7 @@
 {
   "name": "lspd-discord-bot",
   "version": "1.0.0",
-  "description": "Bot Discord officiel LSPD - BFA (DEFCON, MDT, Salaires, Sécurité Anti-Pub)",
+  "description": "Bot Discord officiel LSPD - Ruby FA (DEFCON, MDT, Salaires, Sécurité Anti-Pub)",
   "main": "src/index.js",
   "scripts": {
     "start": "node src/index.js",

@@ -59,7 +59,7 @@ module.exports = {
     const embed = new EmbedBuilder()
       .setColor(0x0A2540)
       .setDescription(cmd.response)
-      .setFooter({ text: `LSPD Bot • Commande !${cmd.name}` });
+      .setFooter({ text: `Secrétaire LSPD | Ruby FA • Commande !${cmd.name}` });
 
     return interaction.reply({ embeds: [embed] });
   }

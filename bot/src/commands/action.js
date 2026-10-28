@@ -128,7 +128,7 @@ module.exports = {
         (reason ? `**Note de service :** *« ${reason} »*\n` : '')
       )
       .setThumbnail(targetUser.displayAvatarURL({ dynamic: true }))
-      .setFooter({ text: 'Los Santos Police Department • Division des Ressources Humaines & Formation' })
+      .setFooter({ text: 'Secrétaire LSPD | Ruby FA • Division des Ressources Humaines & Formation' })
       .setTimestamp();
 
     if (addedRolesList.length > 0) {

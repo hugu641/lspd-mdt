@@ -245,9 +245,13 @@ model DiscordSetting {
   id               String   @id @default("default")
   botToken         String?
   guildId          String?
+  clientId         String?  // Discord Application Client ID
+  clientSecret     String?  // Discord Application Client Secret
   welcomeChannelId String?
   autoSyncRoles    Boolean  @default(true)
   sendWelcomeDm    Boolean  @default(true)
+  authRequired     Boolean  @default(true) // Requiert une connexion Discord pour accéder au terminal
+  allowedRoles     String?  // Rôles autorisés (ex: "LSPD,Police,Rookie,Officier I,Officier II...")
   roleMappings     String?  // JSON stringified role mapping { "Chief of Police": "role_id", ... }
   updatedAt        DateTime @updatedAt
 }

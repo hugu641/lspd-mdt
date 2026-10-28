@@ -59,9 +59,13 @@ client.once('ready', () => {
   console.log(`💰 Système des Salaires : OPÉRATIONNEL`);
   console.log(`===============================================`);
 
-  client.user.setActivity({
-    name: 'DEFCON LSPD • BFA RP',
-    type: ActivityType.Watching
+  client.user.setPresence({
+    activities: [{
+      name: 'Secrétaire LSPD | Ruby FA',
+      state: 'Secrétaire LSPD | Ruby FA',
+      type: ActivityType.Custom
+    }],
+    status: 'online'
   });
 });
 

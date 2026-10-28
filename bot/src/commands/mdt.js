@@ -28,7 +28,7 @@ module.exports = {
       .setTitle('💻 LSPD MOBILE DATA TERMINAL (M.D.T.) — TERMINAL SÉCURISÉ')
       .setColor(0x0A2540) // Bleu nuit LSPD
       .setDescription(
-        `### 🏛️ DÉPARTEMENT DE POLICE DE LOS SANTOS — BFA\n` +
+        `### 🏛️ DÉPARTEMENT DE POLICE DE LOS SANTOS — RUBY FA\n` +
         `**Système Central des Données Opérationnelles & Judiciaires**\n\n` +
         `Le Terminal de Données Mobile (MDT) est l'outil numérique officiel utilisé par toutes les unités de patrouille du LSPD. ` +
         `Il permet l'accès en temps réel aux registres légaux de l'État de San Andreas.\n\n` +

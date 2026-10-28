@@ -1,6 +1,6 @@
-# 🚔 Bot Discord LSPD — Serveur BFA RP
+# 🚔 Bot Discord LSPD — Serveur Ruby FA
 
-Bot Discord officiel complet conçu spécialement pour le **Los Santos Police Department (LSPD)** sur le serveur RP **BFA**.
+Bot Discord officiel complet conçu spécialement pour le **Los Santos Police Department (LSPD)** sur le serveur RP **Ruby FA**.
 
 ---
 
@@ -56,7 +56,7 @@ Vous pouvez créer des commandes personnalisées qui **attribuent et retirent au
 * **Affiches officielles intégrées** :
   * **DEFCON 3**, **DEFCON 4** et **DEFCON 5** : Affiches haute résolution officielles du Gouvernement de San Andreas !
   * **DEFCON 1** et **DEFCON 2** : Embed d'alerte tactique haute priorité avec mentions `@everyone` / `@here`.
-* **Statut Discord dynamique** : Le bot affiche en temps réel le DEFCON actif en statut (ex: `Regarde DEFCON 2 | LSPD BFA`).
+* **Statut Discord dynamique** : Le bot affiche en temps réel le DEFCON actif en statut (ex: `Regarde DEFCON 2 | LSPD Ruby FA`).
 
 ---
 

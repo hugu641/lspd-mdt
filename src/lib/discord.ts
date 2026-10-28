@@ -1,11 +1,16 @@
+import crypto from "crypto";
 import { prisma } from "./prisma";
 
 export interface DiscordConfig {
   botToken?: string;
   guildId?: string;
+  clientId?: string;
+  clientSecret?: string;
   welcomeChannelId?: string;
   autoSyncRoles: boolean;
   sendWelcomeDm: boolean;
+  authRequired: boolean;
+  allowedRoles?: string;
   roleMappings?: Record<string, string>; // { "Chief of Police": "roleId", ... }
 }
 
@@ -26,8 +31,30 @@ export const LSPD_RANK_NAMES = [
   "Rookie",
 ];
 
+const DEFAULT_ALLOWED_ROLES = [
+  "LSPD",
+  "Police",
+  "Chief of Police",
+  "Assistant-Chief",
+  "Deputy-Chief",
+  "Commandant",
+  "Capitaine",
+  "Lieutenant",
+  "Sergent-Chef",
+  "Sergent",
+  "SLO",
+  "Officier III",
+  "Officier II",
+  "Officier I",
+  "Rookie",
+  "Agent",
+  "Membre LSPD",
+];
+
+const SESSION_SECRET = process.env.SESSION_SECRET || "lspd-mdt-secret-key-cyber-violet-2026";
+
 /**
- * Retrieve Discord Bot settings (DB preferred, fallback to process.env)
+ * Retrieve Discord Bot & OAuth settings (DB preferred, fallback to process.env)
  */
 export async function getDiscordConfig(): Promise<DiscordConfig> {
   try {
@@ -37,9 +64,13 @@ export async function getDiscordConfig(): Promise<DiscordConfig> {
 
     const botToken = setting?.botToken || process.env.DISCORD_BOT_TOKEN || "";
     const guildId = setting?.guildId || process.env.DISCORD_GUILD_ID || "";
+    const clientId = setting?.clientId || process.env.DISCORD_CLIENT_ID || "";
+    const clientSecret = setting?.clientSecret || process.env.DISCORD_CLIENT_SECRET || "";
     const welcomeChannelId = setting?.welcomeChannelId || process.env.DISCORD_WELCOME_CHANNEL_ID || "";
     const autoSyncRoles = setting ? setting.autoSyncRoles : true;
     const sendWelcomeDm = setting ? setting.sendWelcomeDm : true;
+    const authRequired = setting ? setting.authRequired : true;
+    const allowedRoles = setting?.allowedRoles || process.env.DISCORD_ALLOWED_ROLES || DEFAULT_ALLOWED_ROLES.join(",");
     let roleMappings: Record<string, string> = {};
 
     if (setting?.roleMappings) {
@@ -53,9 +84,13 @@ export async function getDiscordConfig(): Promise<DiscordConfig> {
     return {
       botToken,
       guildId,
+      clientId,
+      clientSecret,
       welcomeChannelId,
       autoSyncRoles,
       sendWelcomeDm,
+      authRequired,
+      allowedRoles,
       roleMappings,
     };
   } catch (error) {
@@ -63,11 +98,288 @@ export async function getDiscordConfig(): Promise<DiscordConfig> {
     return {
       botToken: process.env.DISCORD_BOT_TOKEN || "",
       guildId: process.env.DISCORD_GUILD_ID || "",
+      clientId: process.env.DISCORD_CLIENT_ID || "",
+      clientSecret: process.env.DISCORD_CLIENT_SECRET || "",
       welcomeChannelId: process.env.DISCORD_WELCOME_CHANNEL_ID || "",
       autoSyncRoles: true,
       sendWelcomeDm: true,
+      authRequired: true,
+      allowedRoles: DEFAULT_ALLOWED_ROLES.join(","),
       roleMappings: {},
     };
+  }
+}
+
+/**
+ * Generate Discord OAuth2 Authorization URL
+ */
+export async function getDiscordOAuthUrl(redirectUri: string) {
+  const config = await getDiscordConfig();
+  const clientId = config.clientId;
+  if (!clientId) {
+    throw new Error("Client ID Discord non configuré. Allez dans Administration > Bot Discord & Rôles Auto.");
+  }
+
+  const scopes = encodeURIComponent("identify guilds guilds.members.read");
+  const encodedRedirect = encodeURIComponent(redirectUri);
+
+  return `https://discord.com/oauth2/authorize?client_id=${clientId}&redirect_uri=${encodedRedirect}&response_type=code&scope=${scopes}`;
+}
+
+/**
+ * Exchange OAuth2 Code for Access Token
+ */
+export async function exchangeDiscordCode(code: string, redirectUri: string) {
+  const config = await getDiscordConfig();
+  const clientId = config.clientId;
+  const clientSecret = config.clientSecret;
+
+  if (!clientId || !clientSecret) {
+    throw new Error("Identifiants OAuth Discord (Client ID / Client Secret) non configurés.");
+  }
+
+  const params = new URLSearchParams({
+    client_id: clientId,
+    client_secret: clientSecret,
+    grant_type: "authorization_code",
+    code,
+    redirect_uri: redirectUri,
+  });
+
+  const res = await fetch("https://discord.com/api/v10/oauth2/token", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+    },
+    body: params.toString(),
+  });
+
+  if (!res.ok) {
+    const errText = await res.text();
+    throw new Error(`Échec de l'échange OAuth2 Discord (${res.status}): ${errText}`);
+  }
+
+  return await res.json();
+}
+
+/**
+ * Fetch Discord User Profile
+ */
+export async function getDiscordUser(accessToken: string) {
+  const res = await fetch("https://discord.com/api/v10/users/@me", {
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+    },
+  });
+
+  if (!res.ok) {
+    throw new Error("Impossible de récupérer le profil Discord de l'utilisateur.");
+  }
+
+  return await res.json();
+}
+
+/**
+ * Check if a Discord user is an authorized LSPD Officer
+ * Verifies guild membership, allowed roles, or database officer match
+ */
+export async function checkUserLSPDAccess(discordUser: any, userAccessToken?: string) {
+  const config = await getDiscordConfig();
+  const guildId = config.guildId;
+  const botToken = config.botToken;
+
+  // 1. Check if an Officer is already linked with this discordId in DB
+  const existingOfficer = await prisma.officer.findFirst({
+    where: {
+      OR: [
+        { discordId: discordUser.id },
+        { discordTag: { equals: discordUser.username, mode: "insensitive" } },
+      ],
+    },
+    include: {
+      badges: { include: { course: true } },
+    },
+  });
+
+  if (existingOfficer) {
+    // If discordId was not explicitly set yet, set it now
+    if (!existingOfficer.discordId) {
+      await prisma.officer.update({
+        where: { id: existingOfficer.id },
+        data: { discordId: discordUser.id, discordTag: discordUser.username },
+      });
+    }
+
+    return {
+      allowed: true,
+      officer: existingOfficer,
+      reason: "Agent déjà répertorié dans les effectifs du terminal LSPD.",
+    };
+  }
+
+  // 2. If no bot token or guildId, check if authRequired is disabled
+  if (!botToken || !guildId) {
+    if (!config.authRequired) {
+      return {
+        allowed: true,
+        reason: "Mode démo (serveur Discord non configuré).",
+      };
+    }
+    return {
+      allowed: false,
+      reason: "Le serveur Discord LSPD n'est pas configuré dans l'administration.",
+    };
+  }
+
+  // 3. Fetch member on the guild using Bot Token
+  try {
+    const memberRes = await fetch(
+      `https://discord.com/api/v10/guilds/${guildId}/members/${discordUser.id}`,
+      {
+        headers: { Authorization: `Bot ${botToken}` },
+      }
+    );
+
+    if (!memberRes.ok) {
+      return {
+        allowed: false,
+        reason: `Vous n'êtes pas membre du serveur Discord LSPD. Rejoignez le serveur avec votre compte Discord (${discordUser.username}).`,
+      };
+    }
+
+    const member = await memberRes.json();
+    const memberRoleIds: string[] = member.roles || [];
+
+    // Fetch guild roles to check names
+    const rolesRes = await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
+      headers: { Authorization: `Bot ${botToken}` },
+    });
+
+    let guildRoles: any[] = [];
+    if (rolesRes.ok) {
+      guildRoles = await rolesRes.json();
+    }
+
+    const allowedList = (config.allowedRoles || DEFAULT_ALLOWED_ROLES.join(","))
+      .split(",")
+      .map((r) => r.trim().toLowerCase());
+
+    const memberRolesNames = guildRoles
+      .filter((r) => memberRoleIds.includes(r.id))
+      .map((r) => r.name);
+
+    // Check if member has at least one allowed role
+    const matchedRole = memberRolesNames.find((roleName) =>
+      allowedList.includes(roleName.toLowerCase())
+    );
+
+    if (!matchedRole) {
+      return {
+        allowed: false,
+        reason: `Accès refusé : Aucun rôle LSPD valide détecté sur votre profil Discord. Vos rôles actuels : [${
+          memberRolesNames.length > 0 ? memberRolesNames.join(", ") : "Aucun rôle"
+        }]. Contactez un instructeur ou l'État-Major pour obtenir votre grade.`,
+      };
+    }
+
+    // Determine rank from matched role or default to Rookie
+    let detectedRank = "Rookie";
+    for (const rank of LSPD_RANK_NAMES) {
+      if (memberRolesNames.some((r) => r.toLowerCase().trim() === rank.toLowerCase().trim())) {
+        detectedRank = rank;
+        break;
+      }
+    }
+
+    // Auto-create / provision Officer account for this verified Discord member!
+    const badgeNum = Math.floor(10 + Math.random() * 89).toString();
+    const displayName = member.nick || discordUser.global_name || discordUser.username;
+    const avatarUrl = discordUser.avatar
+      ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
+      : null;
+
+    const newOfficer = await prisma.officer.create({
+      data: {
+        badgeNumber: badgeNum,
+        name: displayName,
+        callsign: `1-ADAM-${badgeNum}`,
+        rank: detectedRank,
+        department: "LSPD",
+        avatarUrl,
+        discordId: discordUser.id,
+        discordTag: discordUser.username,
+        status: "10-8",
+        unitType: "Adam",
+        isInstructor: memberRolesNames.some((r) => r.toLowerCase().includes("instructeur")),
+        isAdmin: detectedRank === "Chief of Police" || detectedRank === "Capitaine",
+      },
+      include: {
+        badges: { include: { course: true } },
+      },
+    });
+
+    return {
+      allowed: true,
+      officer: newOfficer,
+      matchedRole,
+      reason: `Accès autorisé (Rôle : ${matchedRole}). Nouveau matricule #${badgeNum} attribué.`,
+    };
+  } catch (err: any) {
+    console.error("checkUserLSPDAccess error:", err);
+    return {
+      allowed: false,
+      reason: `Erreur de vérification Discord : ${err.message}`,
+    };
+  }
+}
+
+/**
+ * Sign a secure session token
+ */
+export function createSessionToken(payload: {
+  officerId: string;
+  discordId: string;
+  username: string;
+  rank: string;
+  name: string;
+}) {
+  const data = {
+    ...payload,
+    issuedAt: Date.now(),
+    expiresAt: Date.now() + 1000 * 60 * 60 * 24 * 7, // 7 days
+  };
+
+  const jsonStr = JSON.stringify(data);
+  const base64Data = Buffer.from(jsonStr).toString("base64url");
+  const signature = crypto.createHmac("sha256", SESSION_SECRET).update(base64Data).digest("base64url");
+
+  return `${base64Data}.${signature}`;
+}
+
+/**
+ * Verify a session token
+ */
+export function verifySessionToken(token: string) {
+  try {
+    if (!token || typeof token !== "string") return null;
+    const parts = token.split(".");
+    if (parts.length !== 2) return null;
+
+    const [base64Data, signature] = parts;
+    const expectedSig = crypto.createHmac("sha256", SESSION_SECRET).update(base64Data).digest("base64url");
+
+    if (signature !== expectedSig) return null;
+
+    const jsonStr = Buffer.from(base64Data, "base64url").toString("utf-8");
+    const payload = JSON.parse(jsonStr);
+
+    if (payload.expiresAt && Date.now() > payload.expiresAt) {
+      return null;
+    }
+
+    return payload;
+  } catch (err) {
+    return null;
   }
 }
 
@@ -280,8 +592,6 @@ export async function sendWelcomeDM(officer: {
 
 /**
  * Sync Discord Roles for an officer on the Discord Server
- * Automatically assigns their current rank role, removes old rank roles,
- * and assigns departmental ("LSPD") & instructor ("FTO") roles if applicable.
  */
 export async function syncOfficerDiscordRoles(officer: {
   discordId: string;
@@ -329,7 +639,6 @@ export async function syncOfficerDiscordRoles(officer: {
     const currentMemberRoleIds: string[] = member.roles || [];
 
     // 3. Find Role matching target rank
-    // Priority: custom mappings in config, then case-insensitive name match
     let targetRoleId: string | undefined = config.roleMappings?.[officer.rank];
     if (!targetRoleId) {
       const matchedRole = allRoles.find(
@@ -338,7 +647,6 @@ export async function syncOfficerDiscordRoles(officer: {
       if (matchedRole) targetRoleId = matchedRole.id;
     }
 
-    // Identify all rank role IDs that exist on the server
     const allServerRankRoleIds = allRoles
       .filter((r) =>
         LSPD_RANK_NAMES.some((rankName) => rankName.toLowerCase() === r.name.toLowerCase().trim())
@@ -348,7 +656,7 @@ export async function syncOfficerDiscordRoles(officer: {
     const addedRoles: string[] = [];
     const removedRoles: string[] = [];
 
-    // 4. Remove obsolete rank roles the member currently has
+    // 4. Remove obsolete rank roles
     for (const roleId of currentMemberRoleIds) {
       if (allServerRankRoleIds.includes(roleId) && roleId !== targetRoleId) {
         const delRes = await fetch(
@@ -365,7 +673,7 @@ export async function syncOfficerDiscordRoles(officer: {
       }
     }
 
-    // 5. Add target rank role if not already assigned
+    // 5. Add target rank role
     if (targetRoleId && !currentMemberRoleIds.includes(targetRoleId)) {
       const addRes = await fetch(
         `https://discord.com/api/v10/guilds/${guildId}/members/${cleanUserId}/roles/${targetRoleId}`,

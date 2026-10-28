@@ -59,7 +59,7 @@ async function handleAntiInvite(message, client) {
     const code = match[1];
     detectedCode = code;
 
-    // Si le code textuel est directement dans la whitelist (ex: "lspd", "bfa")
+    // Si le code textuel est directement dans la whitelist (ex: "lspd", "rubyfa")
     if (allowedCodes.includes(code.toLowerCase())) {
       continue;
     }
@@ -115,7 +115,7 @@ async function handleAntiInvite(message, client) {
         `> ⚠️ **Rappel important :** La promotion de serveurs tiers non affiliés est strictement interdite. ` +
         `Au **3ème avertissement**, votre compte sera **banni définitivement** du serveur.`
       )
-      .setFooter({ text: 'Système de Sécurité & Modération Automatisée — LSPD' })
+      .setFooter({ text: 'Secrétaire LSPD | Ruby FA — Système de Sécurité' })
       .setTimestamp();
 
     await message.author.send({ embeds: [warnEmbed] }).catch(() => {
@@ -135,7 +135,7 @@ async function handleAntiInvite(message, client) {
         `Vous avez atteint le seuil maximal de **3 avertissements** pour publication répétée d'invitations Discord non autorisées sur **${message.guild.name}**.\n\n` +
         `🔨 **Sanction :** Bannissement définitif du serveur.`
       )
-      .setFooter({ text: 'Système de Sécurité LSPD — Sanction Automatique' })
+      .setFooter({ text: 'Secrétaire LSPD | Ruby FA — Sanction Automatique' })
       .setTimestamp();
 
     // Envoi du MP avant le ban

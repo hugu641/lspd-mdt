@@ -1,6 +1,7 @@
 "use client";
 
 import React, { createContext, useContext, useState, useEffect } from "react";
+import { usePathname, useRouter } from "next/navigation";
 
 export interface OfficerBadge {
   id: string;
@@ -40,7 +41,9 @@ interface OfficerContextType {
   updateStatus: (status: string) => Promise<void>;
   updateUnitType: (unitType: string) => Promise<void>;
   refreshOfficers: () => Promise<void>;
+  logout: () => Promise<void>;
   isLoading: boolean;
+  isAuthenticated: boolean;
 }
 
 const OfficerContext = createContext<OfficerContextType | undefined>(undefined);
@@ -49,41 +52,76 @@ export function OfficerProvider({ children }: { children: React.ReactNode }) {
   const [currentOfficer, setCurrentOfficerState] = useState<Officer | null>(null);
   const [allOfficers, setAllOfficers] = useState<Officer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const pathname = usePathname();
+  const router = useRouter();
 
-  const fetchOfficers = async () => {
+  const checkAuthAndFetchOfficers = async () => {
     try {
+      // 1. Check Authentication Status
+      const authRes = await fetch("/api/auth/me");
+      const authData = await authRes.json();
+
+      const bypass = typeof window !== "undefined" && localStorage.getItem("lspd_bypass_auth") === "true";
+
+      if (authData.authenticated && authData.officer) {
+        setIsAuthenticated(true);
+        setCurrentOfficerState(authData.officer);
+      } else if (!bypass && authData.authRequired && pathname !== "/login") {
+        setIsAuthenticated(false);
+        router.push("/login");
+        return;
+      }
+
+      // 2. Fetch Officers List
       const res = await fetch("/api/officers");
       if (res.ok) {
         const data = await res.json();
         setAllOfficers(data);
 
-        // Load saved officer or default to Chief
-        const savedId = localStorage.getItem("lspd_active_officer_id");
-        if (savedId) {
-          const found = data.find((o: Officer) => o.id === savedId);
-          if (found) {
-            setCurrentOfficerState(found);
-            return;
+        // If no officer set from session, pick from savedId or first officer
+        if (!authData.officer) {
+          const savedId = localStorage.getItem("lspd_active_officer_id");
+          if (savedId) {
+            const found = data.find((o: Officer) => o.id === savedId);
+            if (found) {
+              setCurrentOfficerState(found);
+              return;
+            }
           }
-        }
-        if (data.length > 0 && !currentOfficer) {
-          setCurrentOfficerState(data[0]);
+          if (data.length > 0 && !currentOfficer) {
+            setCurrentOfficerState(data[0]);
+          }
         }
       }
     } catch (err) {
-      console.error("Failed to load officers", err);
+      console.error("Failed to load auth/officers", err);
     } finally {
       setIsLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchOfficers();
-  }, []);
+    checkAuthAndFetchOfficers();
+  }, [pathname]);
 
   const setCurrentOfficer = (officer: Officer) => {
     setCurrentOfficerState(officer);
     localStorage.setItem("lspd_active_officer_id", officer.id);
+  };
+
+  const logout = async () => {
+    try {
+      await fetch("/api/auth/logout", { method: "POST" });
+      localStorage.removeItem("lspd_bypass_auth");
+      localStorage.removeItem("lspd_active_officer_id");
+      setIsAuthenticated(false);
+      setCurrentOfficerState(null);
+      router.push("/login");
+    } catch (err) {
+      console.error("Logout error", err);
+      router.push("/login");
+    }
   };
 
   const updateStatus = async (status: string) => {
@@ -134,8 +172,10 @@ export function OfficerProvider({ children }: { children: React.ReactNode }) {
         setCurrentOfficer,
         updateStatus,
         updateUnitType,
-        refreshOfficers: fetchOfficers,
+        refreshOfficers: checkAuthAndFetchOfficers,
+        logout,
         isLoading,
+        isAuthenticated,
       }}
     >
       {children}

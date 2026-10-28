@@ -118,7 +118,7 @@ module.exports = {
           .setCustomId('input_mdt_url')
           .setLabel('URL du Terminal MDT')
           .setStyle(TextInputStyle.Short)
-          .setPlaceholder('https://mdt.lspd-bfa.fr ou http://localhost:3005')
+          .setPlaceholder('https://mdt.lspd-rubyfa.fr ou http://localhost:3005')
           .setValue(settings.mdt?.url || '')
           .setRequired(true);
 

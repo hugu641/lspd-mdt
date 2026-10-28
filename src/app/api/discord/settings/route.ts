@@ -9,21 +9,34 @@ export async function GET() {
 
     const botToken = setting?.botToken || process.env.DISCORD_BOT_TOKEN || "";
     const guildId = setting?.guildId || process.env.DISCORD_GUILD_ID || "";
+    const clientId = setting?.clientId || process.env.DISCORD_CLIENT_ID || "";
+    const clientSecret = setting?.clientSecret || process.env.DISCORD_CLIENT_SECRET || "";
     const autoSyncRoles = setting ? setting.autoSyncRoles : true;
     const sendWelcomeDm = setting ? setting.sendWelcomeDm : true;
+    const authRequired = setting ? setting.authRequired : true;
+    const allowedRoles = setting?.allowedRoles || process.env.DISCORD_ALLOWED_ROLES || "LSPD,Police,Rookie,Officier I,Officier II,Officier III,SLO,Sergent,Sergent-Chef,Lieutenant,Capitaine,Commandant,Deputy-Chief,Assistant-Chief,Chief of Police";
 
-    // Mask token for client safety (e.g., MTEw...XXXX)
+    // Mask sensitive fields
     const maskedToken = botToken
       ? `${botToken.slice(0, 8)}...${botToken.slice(-4)}`
+      : "";
+    const maskedSecret = clientSecret
+      ? `${clientSecret.slice(0, 4)}...${clientSecret.slice(-4)}`
       : "";
 
     return NextResponse.json({
       isConfigured: Boolean(botToken && guildId),
+      isConfiguredOAuth: Boolean(clientId && clientSecret),
       hasToken: Boolean(botToken),
+      hasSecret: Boolean(clientSecret),
       botToken: maskedToken,
       guildId,
+      clientId,
+      clientSecret: maskedSecret,
       autoSyncRoles,
       sendWelcomeDm,
+      authRequired,
+      allowedRoles,
       welcomeChannelId: setting?.welcomeChannelId || "",
     });
   } catch (error) {
@@ -43,6 +56,12 @@ export async function POST(req: Request) {
     if (body.guildId !== undefined) {
       dataToUpdate.guildId = body.guildId.trim();
     }
+    if (body.clientId !== undefined) {
+      dataToUpdate.clientId = body.clientId.trim();
+    }
+    if (body.clientSecret && !body.clientSecret.includes("...")) {
+      dataToUpdate.clientSecret = body.clientSecret.trim();
+    }
     if (body.welcomeChannelId !== undefined) {
       dataToUpdate.welcomeChannelId = body.welcomeChannelId.trim();
     }
@@ -51,6 +70,12 @@ export async function POST(req: Request) {
     }
     if (body.sendWelcomeDm !== undefined) {
       dataToUpdate.sendWelcomeDm = Boolean(body.sendWelcomeDm);
+    }
+    if (body.authRequired !== undefined) {
+      dataToUpdate.authRequired = Boolean(body.authRequired);
+    }
+    if (body.allowedRoles !== undefined) {
+      dataToUpdate.allowedRoles = body.allowedRoles.trim();
     }
     if (body.roleMappings !== undefined) {
       dataToUpdate.roleMappings = typeof body.roleMappings === "string" 
@@ -70,9 +95,13 @@ export async function POST(req: Request) {
     return NextResponse.json({
       success: true,
       isConfigured: Boolean(updated.botToken && updated.guildId),
+      isConfiguredOAuth: Boolean(updated.clientId && updated.clientSecret),
       guildId: updated.guildId,
+      clientId: updated.clientId,
       autoSyncRoles: updated.autoSyncRoles,
       sendWelcomeDm: updated.sendWelcomeDm,
+      authRequired: updated.authRequired,
+      allowedRoles: updated.allowedRoles,
     });
   } catch (error) {
     console.error("POST discord settings error:", error);

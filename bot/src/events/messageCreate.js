@@ -28,7 +28,7 @@ module.exports = {
         const embed = new EmbedBuilder()
           .setColor(0x0A2540)
           .setDescription(cmd.response)
-          .setFooter({ text: `LSPD • Commande !${cmd.name} demandée par ${message.author.displayName}` })
+          .setFooter({ text: `Secrétaire LSPD | Ruby FA • Commande !${cmd.name} demandée par ${message.author.displayName}` })
           .setTimestamp();
 
         message.channel.send({ embeds: [embed] }).catch(() => {});

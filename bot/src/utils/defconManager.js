@@ -135,9 +135,12 @@ async function updateDefcon(client, guild, levelNumber, customReason, authorMemb
 
   // 5. Mise à jour de la présence du bot
   try {
-    client.user.setActivity({
-      name: `DEFCON ${levelNumber} | LSPD BFA`,
-      type: 3 // Watching
+    client.user.setPresence({
+      activities: [{
+        name: `[DEFCON ${levelNumber}] Secrétaire LSPD | Ruby FA`,
+        state: `[DEFCON ${levelNumber}] Secrétaire LSPD | Ruby FA`,
+        type: 4 // Custom status
+      }]
     });
   } catch (err) {}
 

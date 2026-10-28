@@ -62,7 +62,7 @@ function buildConfigDashboard(guild) {
     .setTitle('⚙️ CENTRE DE CONTRÔLE & CONFIGURATION LSPD')
     .setColor(0x0A2540)
     .setDescription(
-      `Bienvenue dans le panneau de configuration centralisé du bot **LSPD — BFA**.\n` +
+      `Bienvenue dans le panneau de configuration centralisé du bot **LSPD — Ruby FA**.\n` +
       `Toutes les modifications effectuées ici ou via \`/config\` sont **sauvegardées et appliquées en temps réel**.\n\n` +
       `━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━`
     )
@@ -182,7 +182,7 @@ module.exports = {
     .addSubcommand(sub =>
       sub.setName('mdt')
         .setDescription('Définir le lien web officiel du Terminal MDT')
-        .addStringOption(opt => opt.setName('url').setDescription('URL complète (ex: https://mdt.lspd-bfa.fr)').setRequired(true))
+        .addStringOption(opt => opt.setName('url').setDescription('URL complète (ex: https://mdt.lspd-rubyfa.fr)').setRequired(true))
     )
     .addSubcommandGroup(group =>
       group.setName('whitelist')
