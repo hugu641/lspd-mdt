@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "dev": "next dev -p 3005",
-    "build": "next build",
-    "start": "next start -p 3005",
+    "build": "prisma generate && prisma db push && node prisma/seed.js && next build",
+    "start": "next start",
     "lint": "next lint",
+    "postinstall": "prisma generate",
     "prisma:generate": "prisma generate",
     "prisma:push": "prisma db push",
     "prisma:seed": "node prisma/seed.js"

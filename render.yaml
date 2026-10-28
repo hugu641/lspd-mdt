@@ -1,0 +1,18 @@
+services:
+  - type: web
+    name: lspd-mdt
+    env: node
+    plan: free
+    region: frankfurt
+    buildCommand: npm run build
+    startCommand: npm run start
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: DATABASE_URL
+        value: file:./dev.db
+      - key: NEXTAUTH_SECRET
+        generateValue: true
+      - key: NEXTAUTH_URL
+        value: https://lspd-mdt.onrender.com

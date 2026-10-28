@@ -4,6 +4,12 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Seeding LSPD MDT database...");
 
+  const officerCount = await prisma.officer.count();
+  if (officerCount > 0 && process.env.FORCE_SEED !== "true") {
+    console.log("Database already contains data (" + officerCount + " officers found). Skipping seed to preserve data.");
+    return;
+  }
+
   // Clean old data if any
   await prisma.citationItem.deleteMany();
   await prisma.citation.deleteMany();
