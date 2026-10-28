@@ -32,8 +32,6 @@ import {
   ExternalLink,
   Camera,
   Layers,
-  Pencil,
-  Edit2,
 } from "lucide-react";
 
 // Official 14 Ranks of the LSPD in hierarchical order
@@ -59,15 +57,11 @@ export default function DashboardPage() {
   const [warrants, setWarrants] = useState<any[]>([]);
   const [recentCitations, setRecentCitations] = useState<any[]>([]);
   const [trainingSessions, setTrainingSessions] = useState<any[]>([]);
-  const [selectedDay, setSelectedDay] = useState("MER 28");
   const [showRanksExpanded, setShowRanksExpanded] = useState(false);
   const [showOfficerPicker, setShowOfficerPicker] = useState(false);
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [editingPhoto, setEditingPhoto] = useState(false);
   const [customPhotoInput, setCustomPhotoInput] = useState("");
-  const [editingRank, setEditingRank] = useState(false);
-  const [customRankInput, setCustomRankInput] = useState("");
-  const [savingRank, setSavingRank] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -116,26 +110,6 @@ export default function DashboardPage() {
   const earnedRanks = LSPD_RANKS.slice(0, effectiveRankIndex + 1);
   const nextRank = effectiveRankIndex < LSPD_RANKS.length - 1 ? LSPD_RANKS[effectiveRankIndex + 1] : null;
 
-  const handleSaveRank = async (newRank: string) => {
-    if (!currentOfficer || !newRank.trim()) return;
-    setSavingRank(true);
-    try {
-      const res = await fetch(`/api/officers/${currentOfficer.id}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ rank: newRank.trim() }),
-      });
-      if (res.ok) {
-        setCurrentOfficer({ ...currentOfficer, rank: newRank.trim() });
-        setEditingRank(false);
-      }
-    } catch (err) {
-      console.error("Error updating officer rank:", err);
-    } finally {
-      setSavingRank(false);
-    }
-  };
-
   // Badge icon helper
   const getBadgeIcon = (iconName: string) => {
     switch (iconName?.toLowerCase()) {
@@ -170,125 +144,6 @@ export default function DashboardPage() {
         return { label: "10-10 • Fin de service", dot: "bg-slate-400", border: "border-slate-700 text-slate-400 bg-slate-900/50" };
     }
   };
-
-  // Weekly organized training curriculum
-  const weeklyTrainings = [
-    {
-      id: "LUN 26",
-      day: "LUN",
-      date: "26",
-      sessionTitle: "EVOC - Conduite Haute Vitesse & Manœuvre PIT",
-      shortTitle: "EVOC Conduite",
-      time: "20:00 - 21:30",
-      category: "Conduite",
-      icon: "Zap",
-      color: "amber",
-      location: "Aérodrome de Sandy Shores",
-      instructor: "Capt. Sarah Connor (#12)",
-      seats: "4/4",
-      status: "Terminée",
-      badgeReward: "Pilote EVOC Interception",
-    },
-    {
-      id: "MAR 27",
-      day: "MAR",
-      date: "27",
-      sessionTitle: "Négociation d'Otage & Gestion de Crise",
-      shortTitle: "Négociation Crise",
-      time: "19:00 - 20:30",
-      category: "Spécialité",
-      icon: "ShieldAlert",
-      color: "emerald",
-      location: "Salle de crise PDP Mission Row",
-      instructor: "Sgt. David Miller (#34)",
-      seats: "5/6",
-      status: "Terminée",
-      badgeReward: "Négociateur de Crise",
-    },
-    {
-      id: "MER 28",
-      day: "MER",
-      date: "28",
-      isToday: true,
-      sessionTitle: "SWAT - Tir Tactique & Stand Balistique",
-      shortTitle: "Tir & Tactique",
-      time: "18:00 - 20:00",
-      category: "Tactique",
-      icon: "ShieldAlert",
-      color: "purple",
-      location: "Stand de tir souterrain PDP",
-      instructor: "Sgt. David Miller (#34)",
-      seats: "5/6",
-      status: "Session Active",
-      badgeReward: "Opérateur SWAT Tactique",
-    },
-    {
-      id: "JEU 29",
-      day: "JEU",
-      date: "29",
-      sessionTitle: "Air Support - Pilotage Tactique Hélicoptère (Henry)",
-      shortTitle: "Air Support (Henry)",
-      time: "21:00 - 22:30",
-      category: "Aérien",
-      icon: "Plane",
-      color: "cyan",
-      location: "Héliport PDP Los Santos",
-      instructor: "Chief Marcus Vance (#01)",
-      seats: "2/3",
-      status: "Places disponibles",
-      badgeReward: "Pilote Aérien (Air Support)",
-    },
-    {
-      id: "VEN 30",
-      day: "VEN",
-      date: "30",
-      sessionTitle: "Contrôles Routiers & Procédures d'Interpellation",
-      shortTitle: "Contrôles & Barrages",
-      time: "18:30 - 20:00",
-      category: "Procédure",
-      icon: "Award",
-      color: "violet",
-      location: "Vinewood Boulevard Sector",
-      instructor: "Capt. Sarah Connor (#12)",
-      seats: "3/6",
-      status: "Inscriptions ouvertes",
-      badgeReward: "Instructeur Contrôle Routier",
-    },
-    {
-      id: "SAM 31",
-      day: "SAM",
-      date: "31",
-      sessionTitle: "SWAT - Assaut Bâtiment & Brèche Tactique",
-      shortTitle: "Assaut SWAT Brèche",
-      time: "21:00 - 23:00",
-      category: "Tactique",
-      icon: "ShieldAlert",
-      color: "rose",
-      location: "Site désaffecté Port de Los Santos",
-      instructor: "Sgt. David Miller (#34)",
-      seats: "4/6",
-      status: "Inscriptions ouvertes",
-      badgeReward: "Opérateur SWAT Assaut",
-    },
-    {
-      id: "DIM 1",
-      day: "DIM",
-      date: "1",
-      sessionTitle: "FTO - Pédagogie & Encadrement des Rookies",
-      shortTitle: "Formation FTO",
-      time: "17:00 - 18:30",
-      category: "Pédagogique",
-      icon: "GraduationCap",
-      color: "purple",
-      location: "Centre de Formation PDP",
-      instructor: "Chief Marcus Vance (#01)",
-      seats: "3/5",
-      status: "Inscriptions ouvertes",
-      badgeReward: "Instructeur FTO Certifié",
-    },
-  ];
-
-  const selectedSessionData = weeklyTrainings.find((s) => s.id === selectedDay) || weeklyTrainings[2];
 
   // Save custom photo
   const handleSavePhoto = () => {
@@ -422,92 +277,10 @@ export default function DashboardPage() {
                   #{currentOfficer?.badgeNumber || "00"}
                 </span>
 
-                {/* Interactive Rank Badge with Quick Edit / Type Grade */}
-                <div className="relative inline-flex items-center">
-                  <button
-                    onClick={() => {
-                      setCustomRankInput(currentOfficer?.rank || "");
-                      setEditingRank(!editingRank);
-                    }}
-                    className="group flex items-center gap-1.5 text-[10px] px-2.5 py-0.5 rounded-md bg-purple-950/80 hover:bg-purple-900 text-purple-300 hover:text-white border border-purple-500/40 font-semibold transition-all shadow-sm"
-                    title="Cliquer pour changer ou écrire votre grade"
-                  >
-                    <span>{currentOfficer?.rank || "Rookie"}</span>
-                    <Pencil className="w-2.5 h-2.5 text-purple-400 group-hover:text-purple-200" />
-                  </button>
-
-                  {/* Rank Edit Popup */}
-                  {editingRank && (
-                    <div className="absolute left-0 top-full mt-2 w-72 rounded-xl bg-[#0d0f1e] border border-purple-500/50 shadow-2xl p-3 z-50 space-y-2.5 animate-fade-in backdrop-blur-xl">
-                      <div className="flex items-center justify-between text-xs font-bold text-white border-b border-[#1b1f3c] pb-1.5">
-                        <span className="flex items-center gap-1.5">
-                          <Shield className="w-3.5 h-3.5 text-purple-400" />
-                          <span>Modifier / Écrire le Grade</span>
-                        </span>
-                        <button
-                          onClick={() => setEditingRank(false)}
-                          className="text-slate-400 hover:text-white text-xs"
-                        >
-                          ✕
-                        </button>
-                      </div>
-
-                      {/* Free text custom rank input ("genre écris un grade") */}
-                      <div className="space-y-1">
-                        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
-                          Saisie Manuelle du Grade :
-                        </label>
-                        <div className="flex items-center gap-1.5">
-                          <input
-                            type="text"
-                            value={customRankInput}
-                            onChange={(e) => setCustomRankInput(e.target.value)}
-                            placeholder="Ex: Rookie, Sergent..."
-                            className="flex-1 px-2.5 py-1 rounded-lg bg-[#090b16] border border-[#1d2242] text-xs font-bold text-white focus:outline-none focus:border-purple-500"
-                            onKeyDown={(e) => {
-                              if (e.key === "Enter") handleSaveRank(customRankInput);
-                            }}
-                          />
-                          <button
-                            onClick={() => handleSaveRank(customRankInput)}
-                            disabled={savingRank}
-                            className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md disabled:opacity-50"
-                          >
-                            {savingRank ? "..." : "Valider"}
-                          </button>
-                        </div>
-                      </div>
-
-                      {/* Quick select list from official ranks */}
-                      <div className="space-y-1 pt-1 border-t border-[#1b1f3c]">
-                        <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
-                          Ou sélectionner dans la grille :
-                        </div>
-                        <div className="max-h-36 overflow-y-auto space-y-0.5 pr-1">
-                          {LSPD_RANKS.map((r) => (
-                            <button
-                              key={r.id}
-                              onClick={() => {
-                                setCustomRankInput(r.name);
-                                handleSaveRank(r.name);
-                              }}
-                              className={`w-full px-2 py-1 rounded text-left text-xs flex items-center justify-between transition-colors ${
-                                currentOfficer?.rank?.toLowerCase() === r.name.toLowerCase()
-                                  ? "bg-purple-900/60 text-purple-200 font-bold"
-                                  : "text-slate-300 hover:bg-[#141830] hover:text-white"
-                              }`}
-                            >
-                              <span>{r.name}</span>
-                              <span className="text-[10px] text-purple-400 font-mono font-normal">
-                                Niv. {r.level}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
+                {/* Rank Badge */}
+                <span className="text-[10px] px-2.5 py-0.5 rounded-md bg-purple-950/80 text-purple-300 border border-purple-500/40 font-semibold shadow-sm">
+                  {currentOfficer?.rank || "Rookie"}
+                </span>
 
                 {currentOfficer?.isInstructor && (
                   <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-950/60 text-amber-300 border border-amber-500/40 font-bold flex items-center gap-1">
@@ -660,27 +433,12 @@ export default function DashboardPage() {
                   {currentOfficer?.badges?.length || 0} Validés
                 </span>
               </div>
-
-              <Link
-                href="/trainings"
-                className="text-[10px] font-bold text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors"
-              >
-                <span>Catalogue & Formations</span>
-                <ArrowRight className="w-2.5 h-2.5" />
-              </Link>
             </div>
 
             {/* Badges Grid (Compact) */}
             {!currentOfficer?.badges || currentOfficer.badges.length === 0 ? (
               <div className="p-3 rounded-lg bg-[#0d0f20] border border-[#1c203b] text-center space-y-1">
-                <div className="text-[11px] text-slate-400">Aucun brevet validé pour cet agent.</div>
-                <Link
-                  href="/trainings"
-                  className="inline-flex items-center gap-1 text-[10px] text-purple-400 hover:text-purple-300 font-bold"
-                >
-                  <GraduationCap className="w-3 h-3" />
-                  <span>S&apos;inscrire à une session de formation</span>
-                </Link>
+                <div className="text-[11px] text-slate-400">Aucun brevet enregistré pour cet agent.</div>
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-36 overflow-y-auto pr-1">
@@ -712,184 +470,7 @@ export default function DashboardPage() {
       </section>
 
       {/* =========================================================================
-          SECTION 2: PLANNING HEBDOMADAIRE AVEC TOUTES LES FORMATIONS ORGANISÉES
-          ========================================================================= */}
-      <section className="space-y-4">
-        {/* Section Header with week selector & navigation */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
-              <Calendar className="w-4 h-4" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <h2 className="text-base sm:text-lg font-black text-white tracking-wide">
-                  Planning Hebdomadaire des Formations
-                </h2>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-950/80 text-purple-300 border border-purple-500/30">
-                  7 sessions organisées
-                </span>
-              </div>
-              <p className="text-xs text-slate-400 font-medium">
-                Toutes les sessions d&apos;entraînement tactique et de passage de brevet planifiées
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-slate-400 font-mono font-bold">
-              Semaine du 26 oct. au 1 nov. 2026
-            </span>
-            <div className="flex items-center gap-1">
-              <button
-                title="Semaine précédente"
-                className="p-1.5 rounded-xl bg-[#0e1020] border border-[#1d2038] text-slate-400 hover:text-white transition-colors"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button
-                title="Semaine suivante"
-                className="p-1.5 rounded-xl bg-[#0e1020] border border-[#1d2038] text-slate-400 hover:text-white transition-colors"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* 7 Columns Calendar Grid */}
-        <div className="rounded-2xl bg-[#090a14] border border-[#161a2e] overflow-hidden shadow-lg">
-          {/* Header Row: Days selector */}
-          <div className="grid grid-cols-7 border-b border-[#161a2e] divide-x divide-[#161a2e] text-center">
-            {weeklyTrainings.map((d) => (
-              <button
-                key={d.id}
-                onClick={() => setSelectedDay(d.id)}
-                className={`py-3 px-1 transition-all ${
-                  selectedDay === d.id
-                    ? "bg-[#1c183a] text-purple-200"
-                    : "text-slate-400 hover:bg-[#0e1022] hover:text-slate-200"
-                }`}
-              >
-                <div className="text-[10px] sm:text-xs font-bold uppercase tracking-wider text-slate-400">
-                  {d.day}
-                </div>
-                <div className="text-xs sm:text-base font-black text-white mt-0.5">
-                  {d.date}
-                </div>
-                {d.isToday && (
-                  <div className="flex justify-center mt-1">
-                    <span className="w-1.5 h-1.5 rounded-full bg-purple-400 shadow-[0_0_6px_#a855f7]" />
-                  </div>
-                )}
-              </button>
-            ))}
-          </div>
-
-          {/* Body Row: Organized Training Event Cards per Day */}
-          <div className="grid grid-cols-7 divide-x divide-[#161a2e] min-h-[160px] p-2 bg-[#080913]">
-            {weeklyTrainings.map((session) => {
-              const isSelected = selectedDay === session.id;
-              return (
-                <div
-                  key={session.id}
-                  onClick={() => setSelectedDay(session.id)}
-                  className={`p-1.5 space-y-2 cursor-pointer transition-all rounded-xl ${
-                    isSelected ? "bg-purple-950/20 ring-1 ring-purple-500/40" : "hover:bg-[#0d0f20]"
-                  }`}
-                >
-                  <div
-                    className={`p-2.5 rounded-xl border text-left transition-all ${
-                      session.isToday
-                        ? "bg-[#1c1642] border-purple-500/60 shadow-md"
-                        : "bg-[#0f1124] border-[#1b1f3c] hover:border-purple-500/40"
-                    }`}
-                  >
-                    <div className="flex items-center justify-between text-[9px] font-bold">
-                      <span className="text-slate-400 uppercase truncate">{session.category}</span>
-                      <span
-                        className={`px-1 py-0.2 rounded text-[8px] font-mono ${
-                          session.status === "Terminée"
-                            ? "bg-slate-800 text-slate-400"
-                            : session.isToday
-                            ? "bg-purple-900 text-purple-200"
-                            : "bg-emerald-950 text-emerald-400"
-                        }`}
-                      >
-                        {session.seats}
-                      </span>
-                    </div>
-
-                    <div className="text-[11px] font-black text-white mt-1 line-clamp-2 leading-snug">
-                      {session.shortTitle}
-                    </div>
-
-                    <div className="text-[9px] font-mono text-purple-300 mt-1 flex items-center gap-1">
-                      <Clock className="w-2.5 h-2.5" />
-                      <span>{session.time}</span>
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* Selected Day Formation Details Banner */}
-        <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[#11142b] via-[#0d0f22] to-[#090b16] border border-purple-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-lg">
-          <div className="flex items-start gap-4">
-            <div className="w-12 h-12 rounded-2xl bg-purple-950/80 border border-purple-500/50 flex items-center justify-center flex-shrink-0 text-purple-300 shadow-md">
-              {getBadgeIcon(selectedSessionData.icon)}
-            </div>
-
-            <div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs font-black uppercase tracking-wider text-purple-400">
-                  {selectedSessionData.day} {selectedSessionData.date} OCTOBRE • {selectedSessionData.category}
-                </span>
-                <span className="text-[10px] px-2 py-0.2 rounded-md bg-[#1d2242] text-slate-300 border border-[#2a305e] font-mono">
-                  {selectedSessionData.time}
-                </span>
-                <span className="text-[10px] px-2 py-0.2 rounded-md bg-emerald-950/80 text-emerald-300 border border-emerald-500/30 font-bold">
-                  {selectedSessionData.status}
-                </span>
-              </div>
-
-              <h3 className="text-base sm:text-lg font-black text-white mt-1">
-                {selectedSessionData.sessionTitle}
-              </h3>
-
-              <div className="flex flex-wrap items-center gap-4 text-xs text-slate-400 font-medium mt-1">
-                <span className="flex items-center gap-1">
-                  <MapPin className="w-3.5 h-3.5 text-slate-500" />
-                  {selectedSessionData.location}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Users className="w-3.5 h-3.5 text-slate-500" />
-                  Instructeur: {selectedSessionData.instructor}
-                </span>
-                <span className="flex items-center gap-1 text-purple-300 font-bold">
-                  <Award className="w-3.5 h-3.5 text-purple-400" />
-                  Brevet délivré : {selectedSessionData.badgeReward}
-                </span>
-              </div>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2 self-start md:self-auto flex-shrink-0">
-            <Link
-              href="/trainings"
-              className="px-4 py-2 rounded-xl text-xs font-black bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-lg shadow-purple-900/40 border border-purple-400/40 transition-all flex items-center gap-1.5"
-            >
-              <span>Accéder au module complet</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* =========================================================================
-          SECTION 3: ACCÈS RAPIDE - DERNIERS PV & AVIS DE RECHERCHE
+          SECTION 2: ACCÈS RAPIDE - DERNIERS PV & AVIS DE RECHERCHE
           ========================================================================= */}
       <section className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Dernières Contraventions */}
