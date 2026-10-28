@@ -367,6 +367,13 @@ export async function checkUserLSPDAccess(discordUser: any, userAccessToken?: st
       updatePayload.avatarUrl = `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`;
     }
 
+    // Ensure badgeNumber is in sync with name if formatted as "04 | Hugo Derma"
+    const nameBadgeMatch = existingOfficer.name.match(/^(\d{1,4})\s*\|/);
+    if (nameBadgeMatch && nameBadgeMatch[1] && existingOfficer.badgeNumber !== nameBadgeMatch[1]) {
+      updatePayload.badgeNumber = nameBadgeMatch[1];
+      updatePayload.callsign = `${(updatePayload.rank || existingOfficer.rank || "").toUpperCase()}-${nameBadgeMatch[1]}`;
+    }
+
     if (Object.keys(updatePayload).length > 0) {
       existingOfficer = await prisma.officer.update({
         where: { id: existingOfficer.id },
@@ -425,8 +432,9 @@ export async function checkUserLSPDAccess(discordUser: any, userAccessToken?: st
 
   // Final Rank: Priority to detected role rank (e.g. Rookie), fallback to Chief if admin, or Rookie
   const finalRank = detectedRank || (isAdminOrFounder ? "Chief of Police" : "Rookie");
-  const badgeNum = Math.floor(10 + Math.random() * 89).toString();
   const displayName = member.nick || discordUser.global_name || discordUser.username;
+  const extractedBadge = displayName.match(/^(\d{1,4})\s*\|/);
+  const badgeNum = extractedBadge ? extractedBadge[1] : Math.floor(10 + Math.random() * 89).toString();
   const avatarUrl = discordUser.avatar
     ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
     : null;
