@@ -141,6 +141,19 @@ export default function CandidateApplicationPage() {
       return;
     }
 
+    // Validate mandatory Discord identity (direct OAuth connection OR Discord ID OR Discord username)
+    const hasDiscord =
+      discordVerified ||
+      Boolean(formData.discordId && formData.discordId.trim().length > 0) ||
+      Boolean(formData.discordTag && formData.discordTag.trim().length > 0);
+
+    if (!hasDiscord) {
+      alert(
+        "Liaison Discord obligatoire : Veuillez connecter votre compte Discord en 1 clic ou renseigner au moins votre pseudo (username) ou votre ID Discord."
+      );
+      return;
+    }
+
     // Validate required dynamic fields
     for (const field of fields) {
       if (field.required) {
@@ -325,28 +338,36 @@ export default function CandidateApplicationPage() {
 
         <form onSubmit={handleSubmit} className="space-y-6">
           {/* =================================================================
-              SECTION 1: VÉRIFICATION DISCORD
+              SECTION 1: VÉRIFICATION DISCORD (OBLIGATOIRE)
               ================================================================= */}
           <div className="police-card p-6 rounded-2xl border border-purple-500/40 space-y-4 shadow-xl">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
                 <Bot className="w-5 h-5 text-indigo-400" />
                 <h2 className="text-sm font-black text-white uppercase tracking-wider">
-                  1. Vérification Discord (Recommandée pour rôle & notification)
+                  1. Liaison Discord * (Connexion directe, ID ou Pseudo)
                 </h2>
               </div>
 
-              {discordVerified && (
+              {discordVerified ? (
                 <span className="px-2.5 py-0.5 rounded-full bg-emerald-950 border border-emerald-500 text-emerald-300 text-[10px] font-bold flex items-center gap-1">
                   <Check className="w-3 h-3" />
                   <span>Compte Vérifié</span>
+                </span>
+              ) : (formData.discordId?.trim() || formData.discordTag?.trim()) ? (
+                <span className="px-2.5 py-0.5 rounded-full bg-purple-950 border border-purple-500 text-purple-300 text-[10px] font-bold flex items-center gap-1">
+                  <Check className="w-3 h-3" />
+                  <span>Saisie Renseignée</span>
+                </span>
+              ) : (
+                <span className="px-2.5 py-0.5 rounded-full bg-amber-950/80 border border-amber-600/70 text-amber-300 text-[10px] font-bold uppercase tracking-wider">
+                  Obligatoire
                 </span>
               )}
             </div>
 
             <p className="text-xs text-slate-300 leading-relaxed">
-              La vérification Discord permet de relier votre candidature à votre compte. En cas d'acceptation, 
-              <strong> notre bot vous attribuera automatiquement votre rôle Discord</strong> pour accéder aux salons et vocaux d'entretien, et vous notifiera en MP.
+              La liaison de votre compte Discord est <strong>obligatoire</strong> pour postuler au LSPD. En cas d'acceptation, le bot vous attribuera automatiquement votre rôle Discord et vous enverra un MP officiel avec vos consignes d'entretien.
             </p>
 
             {discordVerified ? (
@@ -388,31 +409,42 @@ export default function CandidateApplicationPage() {
                   className="w-full py-3 rounded-xl bg-[#5865F2] hover:bg-[#4752C4] text-white text-xs font-bold shadow-lg shadow-[#5865F2]/30 transition-all flex items-center justify-center gap-2"
                 >
                   <Bot className="w-4 h-4" />
-                  <span>Vérifier mon compte Discord en 1 clic</span>
+                  <span>Connexion directe Discord en 1 clic (Option 1)</span>
                 </a>
 
                 {/* Saisie manuelle si besoin */}
-                <div className="text-center">
-                  <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
-                    Ou saisie manuelle si nécessaire
+                <div className="text-center py-1">
+                  <span className="text-[10px] text-slate-400 uppercase tracking-wider font-semibold">
+                    OU Option 2 : Renseignez votre Pseudo ou votre ID Discord
                   </span>
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <input
-                    type="text"
-                    value={formData.discordTag}
-                    onChange={(e) => setFormData({ ...formData, discordTag: e.target.value })}
-                    placeholder="Pseudo Discord (ex: Test123)"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-purple-500"
-                  />
-                  <input
-                    type="text"
-                    value={formData.discordId}
-                    onChange={(e) => setFormData({ ...formData, discordId: e.target.value })}
-                    placeholder="ID Discord (17-19 chiffres)"
-                    className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-purple-500"
-                  />
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-300">
+                      Pseudo Discord (Username)
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.discordTag}
+                      onChange={(e) => setFormData({ ...formData, discordTag: e.target.value })}
+                      placeholder="Pseudo Discord (ex: Test123)"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                    />
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-xs font-semibold text-slate-300">
+                      Identifiant Discord (ID numérique)
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.discordId}
+                      onChange={(e) => setFormData({ ...formData, discordId: e.target.value })}
+                      placeholder="ID Discord (17-19 chiffres)"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                    />
+                  </div>
                 </div>
               </div>
             )}

@@ -13,6 +13,7 @@ import {
   Send,
   Check,
   Trash2,
+  Edit,
   ShieldAlert,
 } from "lucide-react";
 import { isHighCommand } from "../../lib/ranks";
@@ -27,6 +28,8 @@ export default function AdminPage() {
   // Officer creation modal
   const [showOfficerModal, setShowOfficerModal] = useState(false);
   const [showArticleModal, setShowArticleModal] = useState(false);
+  const [editingArticle, setEditingArticle] = useState<any | null>(null);
+  const [savingArticle, setSavingArticle] = useState(false);
 
   // Official Ranks list including US Marshal (Admins du serveur)
   const ranksList = [
@@ -304,29 +307,97 @@ export default function AdminPage() {
     }
   };
 
-  // Create Penal Article
-  const handleCreateArticle = async (e: React.FormEvent) => {
+  // Penal Code Actions (Create, Edit, Delete)
+  const handleOpenCreateArticle = () => {
+    setEditingArticle(null);
+    setNewArticleForm({
+      code: "",
+      title: "",
+      category: "Contraventions",
+      fine: 5000,
+      jailTime: 0,
+      secondarySanction: "",
+    });
+    setShowArticleModal(true);
+  };
+
+  const handleOpenEditArticle = (item: any) => {
+    setEditingArticle(item);
+    setNewArticleForm({
+      code: item.code,
+      title: item.title,
+      category: item.category,
+      fine: item.fine,
+      jailTime: item.jailTime,
+      secondarySanction: item.secondarySanction || "",
+    });
+    setShowArticleModal(true);
+  };
+
+  const handleSaveArticle = async (e: React.FormEvent) => {
     e.preventDefault();
+    setSavingArticle(true);
     try {
-      const res = await fetch("/api/penal-code", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newArticleForm),
-      });
-      if (res.ok) {
-        setShowArticleModal(false);
-        setNewArticleForm({
-          code: "",
-          title: "",
-          category: "Contraventions",
-          fine: 5000,
-          jailTime: 0,
-          secondarySanction: "",
+      if (editingArticle) {
+        // PATCH existing article
+        const res = await fetch(`/api/penal-code/${editingArticle.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newArticleForm),
         });
-        fetchData();
+        const data = await res.json();
+        if (res.ok) {
+          setShowArticleModal(false);
+          setEditingArticle(null);
+          await fetchData();
+        } else {
+          alert(data.error || "Erreur lors de la modification de l'article");
+        }
+      } else {
+        // POST new article
+        const res = await fetch("/api/penal-code", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(newArticleForm),
+        });
+        const data = await res.json();
+        if (res.ok) {
+          setShowArticleModal(false);
+          setNewArticleForm({
+            code: "",
+            title: "",
+            category: "Contraventions",
+            fine: 5000,
+            jailTime: 0,
+            secondarySanction: "",
+          });
+          await fetchData();
+        } else {
+          alert(data.error || "Erreur lors de la création de l'article");
+        }
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
+      alert(`✕ Erreur : ${err?.message || "Erreur serveur"}`);
+    } finally {
+      setSavingArticle(false);
+    }
+  };
+
+  const handleDeleteArticle = async (item: any) => {
+    if (!confirm(`Supprimer définitivement l'article ${item.code} - ${item.title} du code pénal ?`)) return;
+    try {
+      const res = await fetch(`/api/penal-code/${item.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (res.ok) {
+        await fetchData();
+      } else {
+        alert(data.error || "Impossible de supprimer l'article");
+      }
+    } catch (err: any) {
+      alert(`Erreur : ${err?.message || "Erreur de connexion"}`);
     }
   };
 
@@ -369,7 +440,7 @@ export default function AdminPage() {
 
           {activeTab === "penal" && (
             <button
-              onClick={() => setShowArticleModal(true)}
+              onClick={handleOpenCreateArticle}
               className="flex-1 sm:flex-none justify-center inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-lg shadow-purple-900/40 transition-all"
             >
               <Plus className="w-4 h-4" />
@@ -686,7 +757,7 @@ export default function AdminPage() {
           {/* Mobile Penal Code Card View (md:hidden) */}
           <div className="md:hidden space-y-2">
             {penalCode.map((item) => (
-              <div key={item.id} className="p-3 rounded-xl bg-[#0a0c1a] border border-[#181c38] space-y-1.5">
+              <div key={item.id} className="p-3 rounded-xl bg-[#0a0c1a] border border-[#181c38] space-y-2">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5">
                     <span className="font-mono text-xs font-black text-purple-400 px-1.5 py-0.5 rounded bg-purple-950/60 border border-purple-500/40">
@@ -706,6 +777,23 @@ export default function AdminPage() {
                     ⚠️ {item.secondarySanction}
                   </div>
                 )}
+
+                <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#181c38]">
+                  <button
+                    onClick={() => handleOpenEditArticle(item)}
+                    className="px-2.5 py-1 rounded-lg bg-purple-950/60 hover:bg-purple-900 border border-purple-500/40 text-purple-200 text-xs font-bold flex items-center gap-1 transition-colors"
+                  >
+                    <Edit className="w-3 h-3" />
+                    <span>Modifier</span>
+                  </button>
+                  <button
+                    onClick={() => handleDeleteArticle(item)}
+                    className="p-1 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-950/30 transition-colors"
+                    title="Supprimer l'article"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                </div>
               </div>
             ))}
           </div>
@@ -731,6 +819,7 @@ export default function AdminPage() {
                     <th className="p-3 text-right">Amende ($)</th>
                     <th className="p-3 text-right">Cellule (min)</th>
                     <th className="p-3">Sanction Secondaire</th>
+                    <th className="p-3 text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#151833]">
@@ -755,6 +844,25 @@ export default function AdminPage() {
                         ) : (
                           <span className="text-slate-600">-</span>
                         )}
+                      </td>
+                      <td className="p-3 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            onClick={() => handleOpenEditArticle(item)}
+                            className="px-2.5 py-1 rounded-lg bg-purple-950/60 hover:bg-purple-900 border border-purple-500/40 text-purple-200 text-xs font-bold flex items-center gap-1 transition-colors"
+                            title="Modifier l'article"
+                          >
+                            <Edit className="w-3 h-3" />
+                            <span>Modifier</span>
+                          </button>
+                          <button
+                            onClick={() => handleDeleteArticle(item)}
+                            className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-950/30 transition-colors"
+                            title="Supprimer l'article"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -925,22 +1033,28 @@ export default function AdminPage() {
       )}
 
       {/* =========================================================================
-          MODAL: AJOUTER UN ARTICLE DE CODE PÉNAL
+          MODAL: AJOUTER OU MODIFIER UN ARTICLE DE CODE PÉNAL
           ========================================================================= */}
       {showArticleModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-[#0b0e20] border border-purple-500/30 rounded-2xl w-full max-w-lg p-4 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto">
+          <div className="bg-[#0b0e20] border border-purple-500/30 rounded-2xl w-full max-w-lg p-4 sm:p-6 space-y-4 shadow-2xl max-h-[90vh] overflow-y-auto animate-fade-in">
             <div className="flex items-center justify-between pb-3 border-b border-[#1b1f3c]">
-              <h2 className="text-base sm:text-lg font-black text-white">Ajouter un Article</h2>
+              <h2 className="text-base sm:text-lg font-black text-white flex items-center gap-2">
+                <BookOpen className="w-4 h-4 text-purple-400" />
+                <span>{editingArticle ? `Modifier l'Article ${editingArticle.code}` : "Ajouter un Article au Code Pénal"}</span>
+              </h2>
               <button
-                onClick={() => setShowArticleModal(false)}
+                onClick={() => {
+                  setShowArticleModal(false);
+                  setEditingArticle(null);
+                }}
                 className="text-slate-400 hover:text-white text-xs font-bold"
               >
                 ✕ Fermer
               </button>
             </div>
 
-            <form onSubmit={handleCreateArticle} className="space-y-3 sm:space-y-4">
+            <form onSubmit={handleSaveArticle} className="space-y-3 sm:space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
                   <label className="text-xs font-semibold text-slate-300">Numéro d&apos;Article *</label>
@@ -1023,16 +1137,24 @@ export default function AdminPage() {
               <div className="flex justify-end gap-2 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowArticleModal(false)}
+                  onClick={() => {
+                    setShowArticleModal(false);
+                    setEditingArticle(null);
+                  }}
                   className="px-4 py-2 rounded-xl bg-[#141834] text-slate-300 text-xs font-semibold hover:text-white"
                 >
                   Annuler
                 </button>
                 <button
                   type="submit"
-                  className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-md shadow-purple-900/30"
+                  disabled={savingArticle}
+                  className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-md shadow-purple-900/30 disabled:opacity-50 transition-all"
                 >
-                  Enregistrer
+                  {savingArticle
+                    ? "Enregistrement..."
+                    : editingArticle
+                    ? "Sauvegarder les modifications"
+                    : "Enregistrer l'article"}
                 </button>
               </div>
             </form>
