@@ -14,13 +14,14 @@ export interface DiscordConfig {
   roleMappings?: Record<string, string>; // { "Chief of Police": "roleId", ... }
 }
 
-// 13 Official LSPD Ranks for matching
+// 14 Official LSPD Ranks for matching
 export const LSPD_RANK_NAMES = [
   "Chief of Police",
   "Assistant-Chief",
   "Deputy-Chief",
   "Commandant",
   "Capitaine",
+  "Lieutenant-Chef",
   "Lieutenant",
   "Sergent-Chef",
   "Sergent",
@@ -30,6 +31,26 @@ export const LSPD_RANK_NAMES = [
   "Officier I",
   "Rookie",
 ];
+
+/**
+ * Robust rank detector that cleans emojis, decorators and typos
+ * (e.g. "👮‍♂️︙Rookie︙" -> "Rookie", "Offcier I" -> "Officier I")
+ */
+export function detectRankFromRoleNames(roleNames: string[]): string | null {
+  for (const rank of LSPD_RANK_NAMES) {
+    const cleanRank = rank.toLowerCase().replace(/[^a-z0-9]/g, "");
+    for (const roleName of roleNames) {
+      const cleanRole = roleName
+        .toLowerCase()
+        .replace(/[^a-z0-9]/g, "")
+        .replace("offcier", "officier");
+      if (cleanRole.includes(cleanRank)) {
+        return rank;
+      }
+    }
+  }
+  return null;
+}
 
 const DEFAULT_ALLOWED_ROLES = [
   "*",
@@ -240,8 +261,53 @@ export async function checkUserLSPDAccess(discordUser: any, userAccessToken?: st
   const guildId = config.guildId;
   const botToken = config.botToken;
 
-  // 1. Check if an Officer is already linked with this discordId in DB
-  const existingOfficer = await prisma.officer.findFirst({
+  // 1. Fetch member on the guild using Bot Token to check roles & rank
+  let member: any = null;
+  let memberRolesNames: string[] = [];
+
+  if (botToken && guildId) {
+    try {
+      const memberRes = await fetch(
+        `https://discord.com/api/v10/guilds/${guildId}/members/${discordUser.id}`,
+        { headers: { Authorization: `Bot ${botToken}` } }
+      );
+      if (memberRes.ok) {
+        member = await memberRes.json();
+        const memberRoleIds: string[] = member.roles || [];
+
+        const rolesRes = await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
+          headers: { Authorization: `Bot ${botToken}` },
+        });
+        if (rolesRes.ok) {
+          const guildRoles = await rolesRes.json();
+          memberRolesNames = guildRoles
+            .filter((r: any) => memberRoleIds.includes(r.id))
+            .map((r: any) => r.name);
+        }
+      }
+    } catch (fetchErr) {
+      console.error("Error fetching Discord member roles:", fetchErr);
+    }
+  }
+
+  // Detect explicit rank from Discord roles (e.g. "👮‍♂️︙Rookie︙" -> "Rookie")
+  const detectedRank = detectRankFromRoleNames(memberRolesNames);
+
+  // Check if member has admin/founder/star permissions on Discord
+  const isAdminOrFounder = memberRolesNames.some((r) => {
+    const lower = r.toLowerCase().trim();
+    return (
+      lower === "*" ||
+      lower.includes("fondateur") ||
+      lower.includes("owner") ||
+      lower.includes("admin") ||
+      lower.includes("direction") ||
+      lower.includes("staff")
+    );
+  });
+
+  // 2. Check if an Officer is already linked with this discordId in DB
+  let existingOfficer = await prisma.officer.findFirst({
     where: {
       OR: [
         { discordId: discordUser.id },
@@ -254,22 +320,39 @@ export async function checkUserLSPDAccess(discordUser: any, userAccessToken?: st
   });
 
   if (existingOfficer) {
-    // If discordId was not explicitly set yet, set it now
+    // Dynamically synchronize rank & profile data from Discord on login!
+    const updatePayload: Record<string, any> = {};
     if (!existingOfficer.discordId) {
-      await prisma.officer.update({
+      updatePayload.discordId = discordUser.id;
+      updatePayload.discordTag = discordUser.username;
+    }
+    // If a rank is detected on Discord and differs from DB, update DB to match Discord!
+    if (detectedRank && existingOfficer.rank !== detectedRank) {
+      updatePayload.rank = detectedRank;
+    }
+    if (isAdminOrFounder && !existingOfficer.isAdmin) {
+      updatePayload.isAdmin = true;
+    }
+    if (discordUser.avatar && !existingOfficer.avatarUrl) {
+      updatePayload.avatarUrl = `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`;
+    }
+
+    if (Object.keys(updatePayload).length > 0) {
+      existingOfficer = await prisma.officer.update({
         where: { id: existingOfficer.id },
-        data: { discordId: discordUser.id, discordTag: discordUser.username },
+        data: updatePayload,
+        include: { badges: { include: { course: true } } },
       });
     }
 
     return {
       allowed: true,
       officer: existingOfficer,
-      reason: "Agent déjà répertorié dans les effectifs du terminal LSPD.",
+      reason: `Connexion réussie • Agent #${existingOfficer.badgeNumber} (${existingOfficer.rank})`,
     };
   }
 
-  // 2. If no bot token or guildId, check if authRequired is disabled
+  // 3. If no bot token or guildId, check if authRequired is disabled
   if (!botToken || !guildId) {
     if (!config.authRequired) {
       return {
@@ -283,150 +366,67 @@ export async function checkUserLSPDAccess(discordUser: any, userAccessToken?: st
     };
   }
 
-  // 3. Fetch member on the guild using Bot Token
-  try {
-    const memberRes = await fetch(
-      `https://discord.com/api/v10/guilds/${guildId}/members/${discordUser.id}`,
-      {
-        headers: { Authorization: `Bot ${botToken}` },
-      }
-    );
-
-    if (!memberRes.ok) {
-      return {
-        allowed: false,
-        reason: `Vous n'êtes pas membre du serveur Discord LSPD. Rejoignez le serveur avec votre compte Discord (${discordUser.username}).`,
-      };
-    }
-
-    const member = await memberRes.json();
-    const memberRoleIds: string[] = member.roles || [];
-
-    // Fetch guild roles to check names
-    const rolesRes = await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
-      headers: { Authorization: `Bot ${botToken}` },
-    });
-
-    let guildRoles: any[] = [];
-    if (rolesRes.ok) {
-      guildRoles = await rolesRes.json();
-    }
-
-    const allowedList = (config.allowedRoles || DEFAULT_ALLOWED_ROLES.join(","))
-      .split(",")
-      .map((r) => r.trim().toLowerCase());
-
-    const memberRolesNames = guildRoles
-      .filter((r) => memberRoleIds.includes(r.id))
-      .map((r) => r.name);
-
-    // Check if member has high-level Discord administrator/founder/star role
-    const isAdminOrFounder = memberRolesNames.some((r) => {
-      const lower = r.toLowerCase().trim();
-      return (
-        lower === "*" ||
-        lower.includes("fondateur") ||
-        lower.includes("owner") ||
-        lower.includes("admin") ||
-        lower.includes("direction") ||
-        lower.includes("staff") ||
-        lower.includes("développeur") ||
-        lower.includes("dev")
-      );
-    });
-
-    // Check if member has at least one allowed role
-    const matchedRole =
-      memberRolesNames.find((roleName) =>
-        allowedList.includes(roleName.toLowerCase())
-      ) || (isAdminOrFounder ? "Fondateur / Admin Discord" : null);
-
-    if (!matchedRole) {
-      return {
-        allowed: false,
-        reason: `Accès refusé : Aucun rôle LSPD valide détecté sur votre profil Discord. Vos rôles actuels : [${
-          memberRolesNames.length > 0 ? memberRolesNames.join(", ") : "Aucun rôle"
-        }]. Attribuez-vous le rôle LSPD ou votre grade sur votre serveur Discord.`,
-      };
-    }
-
-    // Determine rank: if admin/founder default to Chief of Police, else Rookie
-    let detectedRank = isAdminOrFounder ? "Chief of Police" : "Rookie";
-    for (const rank of LSPD_RANK_NAMES) {
-      if (memberRolesNames.some((r) => r.toLowerCase().trim() === rank.toLowerCase().trim())) {
-        detectedRank = rank;
-        break;
-      }
-    }
-
-    const displayName = member.nick || discordUser.global_name || discordUser.username;
-    const avatarUrl = discordUser.avatar
-      ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
-      : null;
-
-    // If Chief of Police exists in DB without a linked discordId, link directly to this Founder/Admin!
-    if (isAdminOrFounder) {
-      const unlinkedChief = await prisma.officer.findFirst({
-        where: { rank: "Chief of Police", discordId: null },
-        include: { badges: { include: { course: true } } },
-      });
-      if (unlinkedChief) {
-        const updatedOfficer = await prisma.officer.update({
-          where: { id: unlinkedChief.id },
-          data: {
-            discordId: discordUser.id,
-            discordTag: discordUser.username,
-            name: displayName || unlinkedChief.name,
-            avatarUrl: avatarUrl || unlinkedChief.avatarUrl,
-            isAdmin: true,
-          },
-          include: { badges: { include: { course: true } } },
-        });
-        return {
-          allowed: true,
-          officer: updatedOfficer,
-          matchedRole: "Fondateur / Chief of Police",
-          reason: `Accès Haut Commandement accordé (Badge #${updatedOfficer.badgeNumber} - ${updatedOfficer.name}).`,
-        };
-      }
-    }
-
-    // Auto-create / provision Officer account for this verified Discord member!
-    const badgeNum = Math.floor(10 + Math.random() * 89).toString();
-
-    const newOfficer = await prisma.officer.create({
-      data: {
-        badgeNumber: badgeNum,
-        name: displayName,
-        callsign: `1-ADAM-${badgeNum}`,
-        rank: detectedRank,
-        department: "LSPD",
-        avatarUrl,
-        discordId: discordUser.id,
-        discordTag: discordUser.username,
-        status: "10-8",
-        unitType: "Adam",
-        isInstructor: memberRolesNames.some((r) => r.toLowerCase().includes("instructeur")),
-        isAdmin: detectedRank === "Chief of Police" || detectedRank === "Capitaine" || isAdminOrFounder,
-      },
-      include: {
-        badges: { include: { course: true } },
-      },
-    });
-
-    return {
-      allowed: true,
-      officer: newOfficer,
-      matchedRole,
-      reason: `Accès autorisé (Rôle : ${matchedRole}). Nouveau matricule #${badgeNum} attribué.`,
-    };
-  } catch (err: any) {
-    console.error("checkUserLSPDAccess error:", err);
+  // If member was not found on the guild
+  if (!member) {
     return {
       allowed: false,
-      reason: `Erreur de vérification Discord : ${err.message}`,
+      reason: `Vous n'êtes pas membre du serveur Discord LSPD. Rejoignez le serveur avec votre compte Discord (${discordUser.username}).`,
     };
   }
+
+  // Check allowed roles
+  const allowedList = (config.allowedRoles || DEFAULT_ALLOWED_ROLES.join(","))
+    .split(",")
+    .map((r) => r.trim().toLowerCase());
+
+  const matchedRole =
+    memberRolesNames.find((roleName) =>
+      allowedList.some((allowed) => roleName.toLowerCase().includes(allowed) || allowed === "*")
+    ) || (isAdminOrFounder ? "Fondateur / Admin Discord" : null) || (detectedRank ? detectedRank : null);
+
+  if (!matchedRole) {
+    return {
+      allowed: false,
+      reason: `Accès refusé : Aucun rôle LSPD valide détecté sur votre profil Discord. Vos rôles actuels : [${
+        memberRolesNames.length > 0 ? memberRolesNames.join(", ") : "Aucun rôle"
+      }]. Attribuez-vous le rôle LSPD ou votre grade sur votre serveur Discord.`,
+    };
+  }
+
+  // Final Rank: Priority to detected role rank (e.g. Rookie), fallback to Chief if admin, or Rookie
+  const finalRank = detectedRank || (isAdminOrFounder ? "Chief of Police" : "Rookie");
+  const badgeNum = Math.floor(10 + Math.random() * 89).toString();
+  const displayName = member.nick || discordUser.global_name || discordUser.username;
+  const avatarUrl = discordUser.avatar
+    ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
+    : null;
+
+  const newOfficer = await prisma.officer.create({
+    data: {
+      badgeNumber: badgeNum,
+      name: displayName,
+      callsign: `${finalRank.toUpperCase()}-${badgeNum}`,
+      rank: finalRank,
+      department: "LSPD",
+      avatarUrl,
+      discordId: discordUser.id,
+      discordTag: discordUser.username,
+      status: "10-8",
+      unitType: "Adam",
+      isInstructor: memberRolesNames.some((r) => r.toLowerCase().includes("instructeur") || r.toLowerCase().includes("fto")),
+      isAdmin: finalRank === "Chief of Police" || finalRank === "Capitaine" || isAdminOrFounder,
+    },
+    include: {
+      badges: { include: { course: true } },
+    },
+  });
+
+  return {
+    allowed: true,
+    officer: newOfficer,
+    matchedRole,
+    reason: `Compte agent créé avec succès • Grade : ${finalRank} • Matricule #${badgeNum}.`,
+  };
 }
 
 /**

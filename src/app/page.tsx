@@ -32,9 +32,11 @@ import {
   ExternalLink,
   Camera,
   Layers,
+  Pencil,
+  Edit2,
 } from "lucide-react";
 
-// Official 13 Ranks of the LSPD in hierarchical order
+// Official 14 Ranks of the LSPD in hierarchical order
 const LSPD_RANKS = [
   { id: "rookie", name: "Rookie", level: 1, category: "Période Probatoire", stars: "★", description: "Cadet en formation probatoire sur le terrain" },
   { id: "officier_1", name: "Officier I", level: 2, category: "Corps de Patrouille", stars: "★★", description: "Agent titulaire de patrouille" },
@@ -44,11 +46,12 @@ const LSPD_RANKS = [
   { id: "sergent", name: "Sergent", level: 6, category: "Supervision de Terrain", stars: "◆", description: "Superviseur d'opérations et de patrouilles" },
   { id: "sergent_chef", name: "Sergent-Chef", level: 7, category: "Supervision de Terrain", stars: "◆◆", description: "Superviseur principal de quart de brigade" },
   { id: "lieutenant", name: "Lieutenant", level: 8, category: "Supervision Supérieure", stars: "◆◆◆", description: "Commandant de quart et responsable d'enquête" },
-  { id: "capitaine", name: "Capitaine", level: 9, category: "État-Major", stars: "◈", description: "Chef de division opérationnelle" },
-  { id: "commandant", name: "Commandant", level: 10, category: "État-Major", stars: "◈◈", description: "Responsable des effectifs et coordinateur de district" },
-  { id: "deputy_chief", name: "Deputy-Chief", level: 11, category: "Haut Commandement", stars: "❖", description: "Adjoint au Haut Commandement LSPD" },
-  { id: "assistant_chief", name: "Assistant-Chief", level: 12, category: "Haut Commandement", stars: "❖❖", description: "Chef adjoint de la police métropolitaine" },
-  { id: "chief", name: "Chief of Police", level: 13, category: "Commandement Suprême", stars: "✪✪✪", description: "Directeur général du Los Santos Police Department" },
+  { id: "lieutenant_chef", name: "Lieutenant-Chef", level: 9, category: "Supervision Supérieure", stars: "◆◆◆◆", description: "Commandant principal de brigade" },
+  { id: "capitaine", name: "Capitaine", level: 10, category: "État-Major", stars: "◈", description: "Chef de division opérationnelle" },
+  { id: "commandant", name: "Commandant", level: 11, category: "État-Major", stars: "◈◈", description: "Responsable des effectifs et coordinateur de district" },
+  { id: "deputy_chief", name: "Deputy-Chief", level: 12, category: "Haut Commandement", stars: "❖", description: "Adjoint au Haut Commandement LSPD" },
+  { id: "assistant_chief", name: "Assistant-Chief", level: 13, category: "Haut Commandement", stars: "❖❖", description: "Chef adjoint de la police métropolitaine" },
+  { id: "chief", name: "Chief of Police", level: 14, category: "Commandement Suprême", stars: "✪✪✪", description: "Directeur général du Los Santos Police Department" },
 ];
 
 export default function DashboardPage() {
@@ -62,6 +65,9 @@ export default function DashboardPage() {
   const [userAvatar, setUserAvatar] = useState<string | null>(null);
   const [editingPhoto, setEditingPhoto] = useState(false);
   const [customPhotoInput, setCustomPhotoInput] = useState("");
+  const [editingRank, setEditingRank] = useState(false);
+  const [customRankInput, setCustomRankInput] = useState("");
+  const [savingRank, setSavingRank] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -109,6 +115,26 @@ export default function DashboardPage() {
   // Rank progression calculations
   const earnedRanks = LSPD_RANKS.slice(0, effectiveRankIndex + 1);
   const nextRank = effectiveRankIndex < LSPD_RANKS.length - 1 ? LSPD_RANKS[effectiveRankIndex + 1] : null;
+
+  const handleSaveRank = async (newRank: string) => {
+    if (!currentOfficer || !newRank.trim()) return;
+    setSavingRank(true);
+    try {
+      const res = await fetch(`/api/officers/${currentOfficer.id}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rank: newRank.trim() }),
+      });
+      if (res.ok) {
+        setCurrentOfficer({ ...currentOfficer, rank: newRank.trim() });
+        setEditingRank(false);
+      }
+    } catch (err) {
+      console.error("Error updating officer rank:", err);
+    } finally {
+      setSavingRank(false);
+    }
+  };
 
   // Badge icon helper
   const getBadgeIcon = (iconName: string) => {
@@ -387,35 +413,106 @@ export default function DashboardPage() {
             </div>
 
             {/* Officer Names and Badges */}
-            <div>
-              <div className="flex items-baseline gap-2 flex-wrap">
+            <div className="space-y-1">
+              <div className="flex items-center gap-2 flex-wrap">
                 <h1 className="text-base sm:text-lg font-black text-white">
                   {firstName} <span className="uppercase tracking-wide text-purple-300">{lastName}</span>
                 </h1>
                 <span className="text-xs font-mono font-bold text-purple-400">
                   #{currentOfficer?.badgeNumber || "00"}
                 </span>
-                <span className="text-[10px] px-2 py-0.2 rounded-md bg-purple-950/80 text-purple-300 border border-purple-500/40 font-semibold">
-                  {currentOfficer?.rank}
-                </span>
-              </div>
 
-              {/* Secondary info strip (Department, Unit, Phone, Callsign, FTO) */}
-              <div className="flex items-center gap-2 sm:gap-3 text-[11px] text-slate-400 flex-wrap mt-0.5">
-                <span>{currentOfficer?.department || "LSPD"}</span>
-                <span>•</span>
-                <span className="text-cyan-300 font-mono font-bold">{currentOfficer?.callsign || "1-ADAM"}</span>
-                <span>•</span>
-                <span>Unité : <strong className="text-slate-200">{currentOfficer?.unitType || "Lincoln"}</strong></span>
-                <span>•</span>
-                <span className="font-mono text-slate-300">Tél : {currentOfficer?.phone || "555-0100"}</span>
+                {/* Interactive Rank Badge with Quick Edit / Type Grade */}
+                <div className="relative inline-flex items-center">
+                  <button
+                    onClick={() => {
+                      setCustomRankInput(currentOfficer?.rank || "");
+                      setEditingRank(!editingRank);
+                    }}
+                    className="group flex items-center gap-1.5 text-[10px] px-2.5 py-0.5 rounded-md bg-purple-950/80 hover:bg-purple-900 text-purple-300 hover:text-white border border-purple-500/40 font-semibold transition-all shadow-sm"
+                    title="Cliquer pour changer ou écrire votre grade"
+                  >
+                    <span>{currentOfficer?.rank || "Rookie"}</span>
+                    <Pencil className="w-2.5 h-2.5 text-purple-400 group-hover:text-purple-200" />
+                  </button>
+
+                  {/* Rank Edit Popup */}
+                  {editingRank && (
+                    <div className="absolute left-0 top-full mt-2 w-72 rounded-xl bg-[#0d0f1e] border border-purple-500/50 shadow-2xl p-3 z-50 space-y-2.5 animate-fade-in backdrop-blur-xl">
+                      <div className="flex items-center justify-between text-xs font-bold text-white border-b border-[#1b1f3c] pb-1.5">
+                        <span className="flex items-center gap-1.5">
+                          <Shield className="w-3.5 h-3.5 text-purple-400" />
+                          <span>Modifier / Écrire le Grade</span>
+                        </span>
+                        <button
+                          onClick={() => setEditingRank(false)}
+                          className="text-slate-400 hover:text-white text-xs"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      {/* Free text custom rank input ("genre écris un grade") */}
+                      <div className="space-y-1">
+                        <label className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                          Saisie Manuelle du Grade :
+                        </label>
+                        <div className="flex items-center gap-1.5">
+                          <input
+                            type="text"
+                            value={customRankInput}
+                            onChange={(e) => setCustomRankInput(e.target.value)}
+                            placeholder="Ex: Rookie, Sergent..."
+                            className="flex-1 px-2.5 py-1 rounded-lg bg-[#090b16] border border-[#1d2242] text-xs font-bold text-white focus:outline-none focus:border-purple-500"
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") handleSaveRank(customRankInput);
+                            }}
+                          />
+                          <button
+                            onClick={() => handleSaveRank(customRankInput)}
+                            disabled={savingRank}
+                            className="px-2.5 py-1 rounded-lg bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs shadow-md disabled:opacity-50"
+                          >
+                            {savingRank ? "..." : "Valider"}
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Quick select list from official ranks */}
+                      <div className="space-y-1 pt-1 border-t border-[#1b1f3c]">
+                        <div className="text-[9px] text-slate-400 font-bold uppercase tracking-wider">
+                          Ou sélectionner dans la grille :
+                        </div>
+                        <div className="max-h-36 overflow-y-auto space-y-0.5 pr-1">
+                          {LSPD_RANKS.map((r) => (
+                            <button
+                              key={r.id}
+                              onClick={() => {
+                                setCustomRankInput(r.name);
+                                handleSaveRank(r.name);
+                              }}
+                              className={`w-full px-2 py-1 rounded text-left text-xs flex items-center justify-between transition-colors ${
+                                currentOfficer?.rank?.toLowerCase() === r.name.toLowerCase()
+                                  ? "bg-purple-900/60 text-purple-200 font-bold"
+                                  : "text-slate-300 hover:bg-[#141830] hover:text-white"
+                              }`}
+                            >
+                              <span>{r.name}</span>
+                              <span className="text-[10px] text-purple-400 font-mono font-normal">
+                                Niv. {r.level}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
                 {currentOfficer?.isInstructor && (
-                  <>
-                    <span>•</span>
-                    <span className="text-amber-400 font-bold flex items-center gap-1">
-                      <span>★ Instructeur FTO</span>
-                    </span>
-                  </>
+                  <span className="text-[10px] px-2 py-0.5 rounded-md bg-amber-950/60 text-amber-300 border border-amber-500/40 font-bold flex items-center gap-1">
+                    ★ Instructeur FTO
+                  </span>
                 )}
               </div>
             </div>
