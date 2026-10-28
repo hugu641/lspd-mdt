@@ -33,7 +33,7 @@ export async function POST(
       });
       if (requester && !isHighCommand(requester)) {
         return NextResponse.json(
-          { error: "Accès refusé : Seuls les hauts gradés (US Marshal, État-Major) peuvent retirer les rôles d'un agent." },
+          { error: "Accès refusé : Seuls les membres du Haut Commandement (US Marshal, Chief, Assistant-Chief, Deputy-Chief) peuvent retirer les rôles d'un agent." },
           { status: 403 }
         );
       }

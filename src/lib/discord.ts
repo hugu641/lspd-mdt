@@ -448,7 +448,12 @@ export async function checkUserLSPDAccess(discordUser: any, userAccessToken?: st
       status: "10-8",
       unitType: isNewOfficerMarshal ? "David" : "Adam",
       isInstructor: memberRolesNames.some((r) => r.toLowerCase().includes("instructeur") || r.toLowerCase().includes("fto")),
-      isAdmin: finalRank === "Chief of Police" || finalRank === "Capitaine" || isAdminOrFounder || isNewOfficerMarshal,
+      isAdmin:
+        finalRank === "Chief of Police" ||
+        finalRank === "Assistant-Chief" ||
+        finalRank === "Deputy-Chief" ||
+        isAdminOrFounder ||
+        isNewOfficerMarshal,
     },
     include: {
       badges: { include: { course: true } },

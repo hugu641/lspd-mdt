@@ -32,7 +32,7 @@ export async function DELETE(
       });
       if (requester && !isHighCommand(requester)) {
         return NextResponse.json(
-          { error: "Accès refusé : Seuls les hauts gradés (US Marshal, État-Major) peuvent supprimer un agent du site." },
+          { error: "Accès refusé : Seuls les membres du Haut Commandement (US Marshal, Chief, Assistant-Chief, Deputy-Chief) peuvent supprimer un agent du site." },
           { status: 403 }
         );
       }
