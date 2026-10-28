@@ -945,15 +945,14 @@ export default function AdminPage() {
                   </div>
                   <div className="flex items-center gap-2">
                     <code className="flex-1 px-2 py-1 rounded bg-[#0a0c18] border border-[#1a1f3c] text-[11px] text-cyan-300 font-mono select-all">
-                      {(originUrl || "https://lspd-mdt.onrender.com") + "/api/auth/discord/callback"}
+                      {(originUrl || "https://ruby-mdt.onrender.com") + "/api/auth/discord/callback"}
                     </code>
                     <button
                       type="button"
                       onClick={() => {
-                        navigator.clipboard.writeText(
-                          (originUrl || "https://lspd-mdt.onrender.com") + "/api/auth/discord/callback"
-                        );
-                        alert("URL de redirection copiée ! Collez-la dans Discord Developer Portal > OAuth2 > Redirects.");
+                        const targetUrl = (originUrl || "https://ruby-mdt.onrender.com") + "/api/auth/discord/callback";
+                        navigator.clipboard.writeText(targetUrl);
+                        alert(`URL copiée :\n${targetUrl}\n\nCollez-la dans Discord Developer Portal > OAuth2 > Redirects.`);
                       }}
                       className="px-2.5 py-1 rounded-lg bg-purple-900/60 hover:bg-purple-800 text-purple-200 text-xs font-bold border border-purple-500/40"
                     >
