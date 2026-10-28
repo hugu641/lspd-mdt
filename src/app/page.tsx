@@ -104,7 +104,7 @@ export default function DashboardPage() {
   const currentRankIndex = LSPD_RANKS.findIndex(
     (r) => r.name.toLowerCase() === (currentOfficer?.rank || "").toLowerCase()
   );
-  const effectiveRankIndex = currentRankIndex >= 0 ? currentRankIndex : 1; // default to Officier I if unknown
+  const effectiveRankIndex = currentRankIndex >= 0 ? currentRankIndex : 1;
 
   // Rank progression calculations
   const earnedRanks = LSPD_RANKS.slice(0, effectiveRankIndex + 1);
@@ -114,37 +114,19 @@ export default function DashboardPage() {
   const getBadgeIcon = (iconName: string) => {
     switch (iconName?.toLowerCase()) {
       case "zap":
-        return <Zap className="w-4 h-4 text-amber-400" />;
+        return <Zap className="w-3.5 h-3.5 text-amber-400" />;
       case "plane":
-        return <Plane className="w-4 h-4 text-cyan-400" />;
+        return <Plane className="w-3.5 h-3.5 text-cyan-400" />;
       case "shieldalert":
-        return <ShieldAlert className="w-4 h-4 text-rose-400" />;
+        return <ShieldAlert className="w-3.5 h-3.5 text-rose-400" />;
       case "dog":
-        return <Dog className="w-4 h-4 text-emerald-400" />;
+        return <Dog className="w-3.5 h-3.5 text-emerald-400" />;
       case "graduationcap":
-        return <GraduationCap className="w-4 h-4 text-purple-400" />;
+        return <GraduationCap className="w-3.5 h-3.5 text-purple-400" />;
       case "heart":
-        return <Heart className="w-4 h-4 text-red-400" />;
+        return <Heart className="w-3.5 h-3.5 text-red-400" />;
       default:
-        return <Award className="w-4 h-4 text-purple-400" />;
-    }
-  };
-
-  // Badge category styles
-  const getBadgeCategoryStyle = (category: string) => {
-    switch (category?.toLowerCase()) {
-      case "conduite":
-        return "bg-amber-500/10 text-amber-300 border-amber-500/30";
-      case "aérien":
-        return "bg-cyan-500/10 text-cyan-300 border-cyan-500/30";
-      case "tactique":
-        return "bg-rose-500/10 text-rose-300 border-rose-500/30";
-      case "spécialité":
-        return "bg-emerald-500/10 text-emerald-300 border-emerald-500/30";
-      case "pédagogique":
-        return "bg-purple-500/10 text-purple-300 border-purple-500/30";
-      default:
-        return "bg-violet-500/10 text-violet-300 border-violet-500/30";
+        return <Award className="w-3.5 h-3.5 text-purple-400" />;
     }
   };
 
@@ -293,57 +275,49 @@ export default function DashboardPage() {
   const statusInfo = getStatusStyle(currentOfficer?.status || "10-10");
 
   return (
-    <div className="space-y-6 sm:space-y-8 animate-fade-in pb-12">
+    <div className="space-y-5 sm:space-y-6 animate-fade-in pb-12">
       {/* =========================================================================
-          SECTION 1: CARTE D'IDENTITÉ & CARRIÈRE DE L'AGENT
-          (Nom, Prénom, Petite image de toi, Tous les grades que tu as, Toutes les formations)
+          SECTION 1: CARTE D'IDENTITÉ & CARRIÈRE DE L'AGENT (COMPACTE & SANS FTO)
           ========================================================================= */}
-      <section className="relative rounded-3xl bg-gradient-to-b from-[#0e1022] via-[#090b16] to-[#070810] border border-purple-500/25 p-5 sm:p-7 shadow-[0_10px_35px_-10px_rgba(147,51,234,0.15)] overflow-hidden">
-        {/* Ambient Top Glow */}
-        <div className="absolute top-0 right-1/4 w-96 h-28 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
-        <div className="absolute top-0 left-10 w-48 h-20 bg-indigo-600/10 rounded-full blur-2xl pointer-events-none" />
+      <section className="relative rounded-2xl bg-gradient-to-b from-[#0e1022] via-[#090b16] to-[#070810] border border-purple-500/25 p-4 sm:p-5 shadow-lg shadow-purple-950/20 overflow-hidden">
+        {/* Subtle Ambient Glow */}
+        <div className="absolute top-0 right-1/4 w-72 h-16 bg-purple-600/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Card Header: Official Title, Department Badge & Quick Switcher */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-5 border-b border-[#1b1e38] relative z-10">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-purple-700 via-indigo-600 to-pink-600 p-[1px] shadow-lg shadow-purple-900/40">
-              <div className="w-full h-full bg-[#0b0d1b] rounded-2xl flex items-center justify-center">
-                <Shield className="w-5 h-5 text-purple-400" />
+        {/* Top Mini Header: Brand & Switcher */}
+        <div className="flex items-center justify-between gap-3 pb-3 border-b border-[#181c38] relative z-10">
+          <div className="flex items-center gap-2.5">
+            <div className="w-7 h-7 rounded-lg bg-gradient-to-tr from-purple-700 via-indigo-600 to-pink-600 p-[1px] shadow-sm">
+              <div className="w-full h-full bg-[#0b0d1b] rounded-lg flex items-center justify-center">
+                <Shield className="w-3.5 h-3.5 text-purple-400" />
               </div>
             </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-black tracking-widest uppercase text-purple-400">
-                  CARTE D'IDENTITÉ PROFESSIONNELLE
-                </span>
-                <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-950/80 text-purple-300 border border-purple-500/30 font-mono font-bold">
-                  OFFICIEL LSPD
-                </span>
-              </div>
-              <h1 className="text-lg sm:text-xl font-black text-white tracking-tight">
-                État de Service & Dossier d'Habilitation
-              </h1>
+            <div className="flex items-center gap-2">
+              <span className="text-[11px] font-black tracking-widest uppercase text-purple-400">
+                CARTE D&apos;IDENTITÉ PROFESSIONNELLE
+              </span>
+              <span className="text-[9px] px-2 py-0.2 rounded-full bg-purple-950/80 text-purple-300 border border-purple-500/30 font-mono font-bold">
+                LSPD
+              </span>
             </div>
           </div>
 
-          {/* Quick Officer Switcher Button */}
+          {/* Quick Officer Switcher */}
           <div className="relative">
             <button
               onClick={() => setShowOfficerPicker(!showOfficerPicker)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#12152a] hover:bg-[#1a1f3d] border border-purple-500/30 text-xs font-bold text-purple-300 hover:text-white transition-all shadow-sm"
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#12152a] hover:bg-[#1a1f3d] border border-purple-500/30 text-[11px] font-bold text-purple-300 hover:text-white transition-all shadow-sm"
             >
-              <Users className="w-3.5 h-3.5 text-purple-400" />
-              <span>Changer d'agent</span>
-              <ChevronDown className="w-3.5 h-3.5 text-slate-400" />
+              <Users className="w-3 h-3 text-purple-400" />
+              <span>Changer d&apos;agent</span>
+              <ChevronDown className="w-3 h-3 text-slate-400" />
             </button>
 
-            {/* Officer Dropdown */}
             {showOfficerPicker && (
-              <div className="absolute right-0 mt-2 w-64 rounded-2xl bg-[#0c0e1e] border border-purple-500/40 shadow-2xl p-2 z-50 divide-y divide-[#171a33]">
-                <div className="px-3 py-1.5 text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                  Sélectionner un effectif actif
+              <div className="absolute right-0 mt-2 w-60 rounded-xl bg-[#0c0e1e] border border-purple-500/40 shadow-2xl p-2 z-50 divide-y divide-[#171a33]">
+                <div className="px-2 py-1 text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                  Sélectionner un effectif
                 </div>
-                <div className="py-1 max-h-56 overflow-y-auto space-y-1">
+                <div className="py-1 max-h-52 overflow-y-auto space-y-1">
                   {allOfficers.map((off) => (
                     <button
                       key={off.id}
@@ -351,7 +325,7 @@ export default function DashboardPage() {
                         setCurrentOfficer(off);
                         setShowOfficerPicker(false);
                       }}
-                      className={`w-full flex items-center justify-between p-2 rounded-xl text-left text-xs transition-all ${
+                      className={`w-full flex items-center justify-between p-1.5 rounded-lg text-left text-xs transition-all ${
                         currentOfficer?.id === off.id
                           ? "bg-purple-900/40 text-purple-200 border border-purple-500/50"
                           : "text-slate-300 hover:bg-[#141730]"
@@ -364,7 +338,7 @@ export default function DashboardPage() {
                         </div>
                       </div>
                       {currentOfficer?.id === off.id && (
-                        <Check className="w-4 h-4 text-purple-400 flex-shrink-0" />
+                        <Check className="w-3.5 h-3.5 text-purple-400 flex-shrink-0" />
                       )}
                     </button>
                   ))}
@@ -374,14 +348,13 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Main Identity Body: Photo + Nom/Prénom + Status Badges */}
-        <div className="mt-6 grid grid-cols-1 lg:grid-cols-12 gap-6 relative z-10">
-          {/* LEFT: Photo & Quick Status Card (Col 4) */}
-          <div className="lg:col-span-4 flex flex-col items-center text-center p-5 rounded-2xl bg-[#0a0c18]/80 border border-[#171a33] space-y-4">
-            {/* Officer Avatar with Glowing Violet Ring */}
-            <div className="relative group">
-              <div className="w-28 h-28 sm:w-32 sm:h-32 rounded-3xl p-1 bg-gradient-to-tr from-purple-600 via-indigo-500 to-pink-500 shadow-[0_0_25px_rgba(168,85,247,0.35)]">
-                <div className="w-full h-full rounded-[22px] overflow-hidden bg-[#0c0e1e] relative flex items-center justify-center">
+        {/* Identity Bar: Compact Avatar + Name + Secondary Info Strip (NO FTO) */}
+        <div className="mt-3.5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3.5 border-b border-[#181c38] relative z-10">
+          <div className="flex items-center gap-3">
+            {/* Compact Photo */}
+            <div className="relative group flex-shrink-0">
+              <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-2xl p-0.5 bg-gradient-to-tr from-purple-600 via-indigo-500 to-pink-500 shadow-md shadow-purple-900/30">
+                <div className="w-full h-full rounded-[14px] overflow-hidden bg-[#0c0e1e] relative flex items-center justify-center">
                   {userAvatar ? (
                     <img
                       src={userAvatar}
@@ -390,330 +363,245 @@ export default function DashboardPage() {
                       onError={() => setUserAvatar(null)}
                     />
                   ) : (
-                    <div className="w-full h-full bg-gradient-to-tr from-purple-900 via-indigo-900 to-slate-900 flex items-center justify-center text-white font-black text-3xl">
+                    <div className="w-full h-full bg-gradient-to-tr from-purple-900 to-indigo-900 flex items-center justify-center text-white font-black text-xl">
                       {firstName[0]}
                       {lastName[0] || ""}
                     </div>
                   )}
 
-                  {/* Change photo hover button */}
                   <button
                     onClick={() => setEditingPhoto(!editingPhoto)}
-                    className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[11px] font-bold gap-1"
-                    title="Changer votre photo"
+                    className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center text-white text-[9px] font-bold"
+                    title="Modifier la photo"
                   >
-                    <Camera className="w-5 h-5 text-purple-300" />
-                    <span>Modifier photo</span>
+                    <Camera className="w-3.5 h-3.5 text-purple-300" />
+                    <span>Photo</span>
                   </button>
                 </div>
               </div>
 
-              {/* Status Dot */}
               <span
-                className={`absolute bottom-1 right-1 w-5 h-5 rounded-full border-2 border-[#0a0c18] ${statusInfo.dot}`}
+                className={`absolute bottom-0 right-0 w-3.5 h-3.5 rounded-full border-2 border-[#0a0c18] ${statusInfo.dot}`}
                 title={statusInfo.label}
               />
             </div>
 
-            {/* Custom Photo Editor Modal / Input */}
-            {editingPhoto && (
-              <div className="w-full space-y-2 p-2 rounded-xl bg-[#111429] border border-purple-500/40 text-left">
-                <label className="text-[10px] font-bold text-purple-300 block">
-                  Lien URL de votre photo :
-                </label>
-                <input
-                  type="url"
-                  value={customPhotoInput}
-                  onChange={(e) => setCustomPhotoInput(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full px-2 py-1 rounded bg-[#090b16] border border-[#222749] text-xs text-white focus:outline-none focus:border-purple-500"
-                />
-                <div className="flex gap-2 justify-end">
-                  <button
-                    onClick={() => setEditingPhoto(false)}
-                    className="px-2 py-0.5 rounded text-[10px] text-slate-400 hover:text-white"
-                  >
-                    Annuler
-                  </button>
-                  <button
-                    onClick={handleSavePhoto}
-                    className="px-2.5 py-0.5 rounded bg-purple-600 hover:bg-purple-500 text-[10px] font-bold text-white"
-                  >
-                    Valider
-                  </button>
-                </div>
+            {/* Officer Names and Badges */}
+            <div>
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <h1 className="text-base sm:text-lg font-black text-white">
+                  {firstName} <span className="uppercase tracking-wide text-purple-300">{lastName}</span>
+                </h1>
+                <span className="text-xs font-mono font-bold text-purple-400">
+                  #{currentOfficer?.badgeNumber || "00"}
+                </span>
+                <span className="text-[10px] px-2 py-0.2 rounded-md bg-purple-950/80 text-purple-300 border border-purple-500/40 font-semibold">
+                  {currentOfficer?.rank}
+                </span>
               </div>
-            )}
 
-            {/* Operational Status Pill */}
-            <div className={`px-3 py-1 rounded-full text-xs font-bold border flex items-center gap-2 ${statusInfo.border}`}>
-              <span className={`w-2 h-2 rounded-full ${statusInfo.dot}`} />
-              <span>{statusInfo.label}</span>
-            </div>
-
-            {/* Callsign & Unit */}
-            <div className="w-full pt-3 border-t border-[#161930] grid grid-cols-2 gap-2 text-left">
-              <div className="p-2 rounded-xl bg-[#0e1124] border border-[#1b1f3c]">
-                <div className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Matricule</div>
-                <div className="text-xs font-black font-mono text-purple-300">#{currentOfficer?.badgeNumber || "00"}</div>
-              </div>
-              <div className="p-2 rounded-xl bg-[#0e1124] border border-[#1b1f3c]">
-                <div className="text-[9px] uppercase tracking-wider text-slate-400 font-bold">Indicatif Radio</div>
-                <div className="text-xs font-black font-mono text-cyan-300 truncate">{currentOfficer?.callsign || "1-ADAM"}</div>
+              {/* Secondary info strip (Department, Unit, Phone, Callsign - NO FTO) */}
+              <div className="flex items-center gap-2 sm:gap-3 text-[11px] text-slate-400 flex-wrap mt-0.5">
+                <span>{currentOfficer?.department || "LSPD"}</span>
+                <span>•</span>
+                <span className="text-cyan-300 font-mono font-bold">{currentOfficer?.callsign || "1-ADAM"}</span>
+                <span>•</span>
+                <span>Unité : <strong className="text-slate-200">{currentOfficer?.unitType || "Lincoln"}</strong></span>
+                <span>•</span>
+                <span className="font-mono text-slate-300">Tél : {currentOfficer?.phone || "555-0100"}</span>
               </div>
             </div>
           </div>
 
-          {/* RIGHT: Nom, Prénom, Grades Possédés & Formations (Col 8) */}
-          <div className="lg:col-span-8 space-y-5">
-            {/* Row 1: Identity Cards (Nom & Prénom distinctly displayed) */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-              {/* Prénom */}
-              <div className="p-3.5 rounded-2xl bg-[#0b0e1e] border border-[#181c38]">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-purple-400/80">
-                  Prénom
-                </div>
-                <div className="text-lg sm:text-xl font-black text-white mt-0.5">
-                  {firstName}
-                </div>
-                <div className="text-[11px] text-slate-400 font-medium mt-0.5">
-                  Agent actif assermenté LSPD
-                </div>
+          {/* Status Pill */}
+          <div className="flex items-center gap-2 self-start sm:self-auto flex-shrink-0">
+            <div className={`px-2.5 py-1 rounded-full text-[11px] font-bold border flex items-center gap-1.5 ${statusInfo.border}`}>
+              <span className={`w-2 h-2 rounded-full ${statusInfo.dot}`} />
+              <span>{statusInfo.label}</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Photo URL editor inline popup if toggled */}
+        {editingPhoto && (
+          <div className="my-2 p-2.5 rounded-xl bg-[#111429] border border-purple-500/40 flex items-center gap-2 text-xs">
+            <span className="text-[10px] font-bold text-purple-300 whitespace-nowrap">URL Photo :</span>
+            <input
+              type="url"
+              value={customPhotoInput}
+              onChange={(e) => setCustomPhotoInput(e.target.value)}
+              placeholder="https://..."
+              className="flex-1 px-2 py-1 rounded bg-[#090b16] border border-[#222749] text-xs text-white focus:outline-none focus:border-purple-500"
+            />
+            <button
+              onClick={() => setEditingPhoto(false)}
+              className="px-2 py-1 rounded text-[10px] text-slate-400 hover:text-white"
+            >
+              Annuler
+            </button>
+            <button
+              onClick={handleSavePhoto}
+              className="px-2.5 py-1 rounded bg-purple-600 hover:bg-purple-500 text-[10px] font-bold text-white"
+            >
+              Valider
+            </button>
+          </div>
+        )}
+
+        {/* Two Balanced Compact Panels: Grades & Formations */}
+        <div className="mt-3.5 grid grid-cols-1 lg:grid-cols-2 gap-3.5 relative z-10">
+          {/* PANEL 1: TOUS LES GRADES QUE TU AS */}
+          <div className="p-3.5 rounded-xl bg-[#0a0c1a] border border-[#181c38] space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Star className="w-3.5 h-3.5 text-amber-400" />
+                <h2 className="text-xs font-black text-white uppercase tracking-wider">
+                  Grades & Échelons Acquis
+                </h2>
+                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30 font-bold">
+                  Échelon {effectiveRankIndex + 1}/13
+                </span>
               </div>
 
-              {/* Nom */}
-              <div className="p-3.5 rounded-2xl bg-[#0b0e1e] border border-[#181c38]">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-purple-400/80">
-                  Nom de Famille
-                </div>
-                <div className="text-lg sm:text-xl font-black text-white mt-0.5 uppercase tracking-wide">
-                  {lastName || "NON SPÉCIFIÉ"}
-                </div>
-                <div className="text-[11px] text-slate-400 font-medium mt-0.5">
-                  Division de Patrouille & Enquêtes
-                </div>
-              </div>
+              <button
+                onClick={() => setShowRanksExpanded(!showRanksExpanded)}
+                className="text-[10px] font-bold text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors"
+              >
+                <span>{showRanksExpanded ? "Fermer l&apos;arbre" : "Voir les 13"}</span>
+                <ChevronDown className={`w-3 h-3 transition-transform ${showRanksExpanded ? "rotate-180" : ""}`} />
+              </button>
             </div>
 
-            {/* Row 2: Secondary info (Département, Téléphone, Unité, Habilitation) */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
-              <div className="p-2.5 rounded-xl bg-[#0a0c18] border border-[#161a33]">
-                <div className="text-[9px] uppercase font-bold text-slate-400">Département</div>
-                <div className="font-bold text-white mt-0.5">{currentOfficer?.department || "LSPD"}</div>
-              </div>
-              <div className="p-2.5 rounded-xl bg-[#0a0c18] border border-[#161a33]">
-                <div className="text-[9px] uppercase font-bold text-slate-400">Unité Actuelle</div>
-                <div className="font-bold text-cyan-300 mt-0.5">{currentOfficer?.unitType || "Lincoln"}</div>
-              </div>
-              <div className="p-2.5 rounded-xl bg-[#0a0c18] border border-[#161a33]">
-                <div className="text-[9px] uppercase font-bold text-slate-400">Téléphone Radio</div>
-                <div className="font-bold font-mono text-slate-200 mt-0.5">{currentOfficer?.phone || "555-0100"}</div>
-              </div>
-              <div className="p-2.5 rounded-xl bg-[#0a0c18] border border-[#161a33]">
-                <div className="text-[9px] uppercase font-bold text-slate-400">Instructeur FTO</div>
-                <div className="font-bold text-emerald-400 mt-0.5">
-                  {currentOfficer?.isInstructor ? "Oui (Habilité)" : "Non"}
-                </div>
-              </div>
-            </div>
-
-            {/* =========================================================================
-                SECTION INTERNE: TOUS LES GRADES QUE TU AS (Grade Actuel + Progression)
-                ========================================================================= */}
-            <div className="p-4 rounded-2xl bg-[#0a0c1a] border border-[#181c38] space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Star className="w-4 h-4 text-amber-400" />
-                  <h3 className="text-xs sm:text-sm font-black text-white uppercase tracking-wider">
-                    Tous vos Grades & Échelons de Carrière
-                  </h3>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-300 border border-amber-500/30 font-bold">
-                    Échelon {effectiveRankIndex + 1} / 13
-                  </span>
-                </div>
-
-                <button
-                  onClick={() => setShowRanksExpanded(!showRanksExpanded)}
-                  className="text-[11px] font-bold text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors"
-                >
-                  <span>{showRanksExpanded ? "Réduire l'arbre" : "Voir tous les 13 grades"}</span>
-                  <ChevronDown className={`w-3.5 h-3.5 transition-transform ${showRanksExpanded ? "rotate-180" : ""}`} />
-                </button>
+            {/* Current Active Rank Bar */}
+            <div className="p-2 rounded-lg bg-gradient-to-r from-purple-950/50 to-[#0e1124] border border-purple-500/30 flex items-center justify-between gap-2">
+              <div className="flex items-center gap-2">
+                <span className="text-xs font-bold text-amber-400">
+                  {LSPD_RANKS[effectiveRankIndex]?.stars || "★"}
+                </span>
+                <span className="text-xs font-black text-white">
+                  {currentOfficer?.rank}
+                </span>
+                <span className="text-[9px] px-1.5 py-0.2 rounded bg-purple-500/20 text-purple-300 font-mono">
+                  {LSPD_RANKS[effectiveRankIndex]?.category}
+                </span>
               </div>
 
-              {/* Current Active Rank Spotlight */}
-              <div className="p-3.5 rounded-xl bg-gradient-to-r from-purple-950/60 via-[#121630] to-[#0c0e1e] border border-purple-500/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3 shadow-inner">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-purple-900/60 border border-purple-500/60 flex items-center justify-center text-purple-200 font-black text-sm shadow-md">
-                    {LSPD_RANKS[effectiveRankIndex]?.stars || "★"}
-                  </div>
-                  <div>
-                    <div className="text-[10px] font-black uppercase tracking-wider text-purple-300">
-                      Grade Actuel en Exercice
-                    </div>
-                    <div className="text-base sm:text-lg font-black text-white flex items-center gap-2">
-                      <span>{currentOfficer?.rank || "Officier"}</span>
-                      <span className="text-[10px] px-2 py-0.2 rounded-md bg-purple-500/20 text-purple-300 border border-purple-500/40 font-mono">
-                        {LSPD_RANKS[effectiveRankIndex]?.category}
-                      </span>
-                    </div>
-                    <div className="text-[11px] text-slate-400">
-                      {LSPD_RANKS[effectiveRankIndex]?.description}
-                    </div>
-                  </div>
-                </div>
-
-                {nextRank && (
-                  <div className="text-right sm:border-l sm:border-[#1d2242] sm:pl-4 self-start sm:self-auto">
-                    <div className="text-[9px] uppercase font-bold text-slate-400">Prochain échelon visé</div>
-                    <div className="text-xs font-bold text-purple-300 flex items-center gap-1 mt-0.5">
-                      <span>{nextRank.name}</span>
-                      <ArrowRight className="w-3 h-3 text-purple-400" />
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Earned Ranks Pills (Horizontal progression ladder of all ranks acquired) */}
-              <div className="space-y-1.5 pt-1">
-                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
-                  Grades et échelons acquis au cours de votre carrière ({earnedRanks.length} validés) :
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  {earnedRanks.map((r, idx) => {
-                    const isCurrent = idx === effectiveRankIndex;
-                    return (
-                      <div
-                        key={r.id}
-                        className={`px-2.5 py-1 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-all ${
-                          isCurrent
-                            ? "bg-purple-900/70 text-purple-100 border border-purple-400 shadow-[0_0_8px_rgba(168,85,247,0.3)]"
-                            : "bg-[#111326] text-slate-300 border border-[#202544]"
-                        }`}
-                      >
-                        <CheckCircle2 className={`w-3 h-3 ${isCurrent ? "text-purple-300" : "text-emerald-400"}`} />
-                        <span>{r.name}</span>
-                        {isCurrent && (
-                          <span className="text-[9px] px-1 py-0.2 rounded bg-purple-500/40 text-purple-200">
-                            Actuel
-                          </span>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-
-              {/* Full 13 Ranks Tree Expandable */}
-              {showRanksExpanded && (
-                <div className="mt-3 pt-3 border-t border-[#181c38] grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                  {LSPD_RANKS.map((r, idx) => {
-                    const isEarned = idx <= effectiveRankIndex;
-                    const isCurrent = idx === effectiveRankIndex;
-                    return (
-                      <div
-                        key={r.id}
-                        className={`p-2 rounded-xl border text-xs transition-all ${
-                          isCurrent
-                            ? "bg-purple-950/60 border-purple-500/70 text-purple-100"
-                            : isEarned
-                            ? "bg-[#0d1022] border-emerald-900/40 text-slate-300"
-                            : "bg-[#080913] border-[#15172b] text-slate-500 opacity-60"
-                        }`}
-                      >
-                        <div className="flex items-center justify-between">
-                          <span className="font-bold flex items-center gap-1">
-                            {isEarned ? (
-                              <Check className="w-3 h-3 text-emerald-400" />
-                            ) : (
-                              <span className="w-3 h-3 rounded-full border border-slate-700 inline-block" />
-                            )}
-                            {r.name}
-                          </span>
-                          <span className="font-mono text-[9px] text-slate-400">{r.stars}</span>
-                        </div>
-                        <div className="text-[9px] text-slate-400 mt-0.5 truncate">{r.category}</div>
-                      </div>
-                    );
-                  })}
+              {nextRank && (
+                <div className="text-[10px] text-purple-300 font-semibold flex items-center gap-1">
+                  <span className="text-slate-400">Suivant :</span>
+                  <span>{nextRank.name}</span>
                 </div>
               )}
             </div>
 
-            {/* =========================================================================
-                SECTION INTERNE: TOUTES LES FORMATIONS QUE TU AS (Brevets & Badges)
-                ========================================================================= */}
-            <div className="p-4 rounded-2xl bg-[#0a0c1a] border border-[#181c38] space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <Award className="w-4 h-4 text-purple-400" />
-                  <h3 className="text-xs sm:text-sm font-black text-white uppercase tracking-wider">
-                    Toutes vos Formations & Brevets Certifiés
-                  </h3>
-                  <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/30 font-bold">
-                    {currentOfficer?.badges?.length || 0} Brevets Validés
-                  </span>
-                </div>
+            {/* Horizontal Compact Progression Ladder */}
+            <div className="flex flex-wrap gap-1 pt-0.5">
+              {earnedRanks.map((r, idx) => {
+                const isCurrent = idx === effectiveRankIndex;
+                return (
+                  <div
+                    key={r.id}
+                    className={`px-2 py-0.5 rounded text-[10px] font-bold flex items-center gap-1 transition-all ${
+                      isCurrent
+                        ? "bg-purple-900/70 text-purple-100 border border-purple-400 shadow-sm"
+                        : "bg-[#101326] text-slate-300 border border-[#1b203c]"
+                    }`}
+                  >
+                    <CheckCircle2 className={`w-2.5 h-2.5 ${isCurrent ? "text-purple-300" : "text-emerald-400"}`} />
+                    <span>{r.name}</span>
+                  </div>
+                );
+              })}
+            </div>
 
+            {/* Expandable 13 Ranks Tree */}
+            {showRanksExpanded && (
+              <div className="mt-2 pt-2 border-t border-[#181c38] grid grid-cols-2 sm:grid-cols-3 gap-1 text-[10px]">
+                {LSPD_RANKS.map((r, idx) => {
+                  const isEarned = idx <= effectiveRankIndex;
+                  const isCurrent = idx === effectiveRankIndex;
+                  return (
+                    <div
+                      key={r.id}
+                      className={`p-1.5 rounded-lg border flex items-center justify-between ${
+                        isCurrent
+                          ? "bg-purple-950/70 border-purple-500/60 text-purple-200 font-bold"
+                          : isEarned
+                          ? "bg-[#0d1020] border-emerald-900/30 text-slate-300"
+                          : "bg-[#080912] border-[#151728] text-slate-500"
+                      }`}
+                    >
+                      <span className="truncate flex items-center gap-1">
+                        {isEarned ? <Check className="w-2.5 h-2.5 text-emerald-400 flex-shrink-0" /> : "•"}
+                        <span className="truncate">{r.name}</span>
+                      </span>
+                      <span className="font-mono text-[9px] text-slate-400 flex-shrink-0 ml-1">{r.stars}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          {/* PANEL 2: TOUTES LES FORMATIONS QUE TU AS */}
+          <div className="p-3.5 rounded-xl bg-[#0a0c1a] border border-[#181c38] space-y-2.5">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-1.5">
+                <Award className="w-3.5 h-3.5 text-purple-400" />
+                <h2 className="text-xs font-black text-white uppercase tracking-wider">
+                  Brevets & Certifications
+                </h2>
+                <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-purple-500/10 text-purple-300 border border-purple-500/30 font-bold">
+                  {currentOfficer?.badges?.length || 0} Validés
+                </span>
+              </div>
+
+              <Link
+                href="/trainings"
+                className="text-[10px] font-bold text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors"
+              >
+                <span>Catalogue & Formations</span>
+                <ArrowRight className="w-2.5 h-2.5" />
+              </Link>
+            </div>
+
+            {/* Badges Grid (Compact) */}
+            {!currentOfficer?.badges || currentOfficer.badges.length === 0 ? (
+              <div className="p-3 rounded-lg bg-[#0d0f20] border border-[#1c203b] text-center space-y-1">
+                <div className="text-[11px] text-slate-400">Aucun brevet validé pour cet agent.</div>
                 <Link
                   href="/trainings"
-                  className="text-[11px] font-bold text-purple-400 hover:text-purple-300 flex items-center gap-1 transition-colors"
+                  className="inline-flex items-center gap-1 text-[10px] text-purple-400 hover:text-purple-300 font-bold"
                 >
-                  <span>Passer une certification</span>
-                  <ArrowRight className="w-3 h-3" />
+                  <GraduationCap className="w-3 h-3" />
+                  <span>S&apos;inscrire à une session de formation</span>
                 </Link>
               </div>
-
-              {/* Badges Cards Grid */}
-              {!currentOfficer?.badges || currentOfficer.badges.length === 0 ? (
-                <div className="p-4 rounded-xl bg-[#0d0f20] border border-[#1c203b] text-center space-y-2">
-                  <div className="text-xs text-slate-400">
-                    Aucun brevet officiellement validé pour cet agent.
-                  </div>
-                  <Link
-                    href="/trainings"
-                    className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-xs font-bold text-white transition-all shadow-md shadow-purple-900/30"
+            ) : (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-1.5 max-h-36 overflow-y-auto pr-1">
+                {currentOfficer.badges.map((b) => (
+                  <div
+                    key={b.id}
+                    className="p-2 rounded-lg bg-[#0e1124] border border-[#1b1f3c] hover:border-purple-500/40 transition-all flex items-center gap-2"
                   >
-                    <GraduationCap className="w-3.5 h-3.5" />
-                    <span>Consulter le catalogue des formations & s'inscrire</span>
-                  </Link>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
-                  {currentOfficer.badges.map((b) => (
-                    <div
-                      key={b.id}
-                      className="p-3 rounded-xl bg-gradient-to-r from-[#0d1024] to-[#080913] border border-[#1e2344] hover:border-purple-500/50 transition-all flex items-start gap-3"
-                    >
-                      <div className="w-9 h-9 rounded-xl bg-[#141834] border border-purple-500/30 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        {getBadgeIcon(b.course?.badgeIcon || "Award")}
+                    <div className="w-6 h-6 rounded-md bg-[#141834] border border-purple-500/30 flex items-center justify-center flex-shrink-0 text-purple-300">
+                      {getBadgeIcon(b.course?.badgeIcon || "Award")}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-[11px] font-bold text-white truncate">
+                        {b.course?.badgeName || b.course?.title}
                       </div>
-                      <div className="min-w-0 flex-1">
-                        <div className="flex items-center justify-between gap-1">
-                          <span className="text-xs font-black text-white truncate">
-                            {b.course?.badgeName || b.course?.title || "Brevet Validé"}
-                          </span>
-                          <span
-                            className={`text-[9px] font-bold px-1.5 py-0.2 rounded border ${getBadgeCategoryStyle(
-                              b.course?.category || "Spécialité"
-                            )}`}
-                          >
-                            {b.course?.category || "Certifié"}
-                          </span>
-                        </div>
-                        <div className="text-[10px] text-slate-400 truncate mt-0.5">
-                          {b.course?.title || "Formation officielle LSPD"}
-                        </div>
-                        <div className="flex items-center gap-1.5 text-[9px] text-emerald-400 font-medium mt-1">
-                          <CheckCircle2 className="w-2.5 h-2.5" />
-                          <span>Habilitation opérationnelle valide</span>
-                        </div>
+                      <div className="flex items-center gap-1 text-[9px] text-emerald-400 font-medium">
+                        <CheckCircle2 className="w-2 h-2" />
+                        <span>Validé</span>
+                        <span className="text-slate-500">•</span>
+                        <span className="text-slate-400 truncate">{b.course?.category || "LSPD"}</span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -738,7 +626,7 @@ export default function DashboardPage() {
                 </span>
               </div>
               <p className="text-xs text-slate-400 font-medium">
-                Toutes les sessions d'entraînement tactique et de passage de brevet planifiées
+                Toutes les sessions d&apos;entraînement tactique et de passage de brevet planifiées
               </p>
             </div>
           </div>
@@ -842,7 +730,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* Selected Day Formation Details Banner & Quick Registration */}
+        {/* Selected Day Formation Details Banner */}
         <div className="p-4 sm:p-5 rounded-2xl bg-gradient-to-r from-[#11142b] via-[#0d0f22] to-[#090b16] border border-purple-500/30 flex flex-col md:flex-row md:items-center justify-between gap-4 shadow-lg">
           <div className="flex items-start gap-4">
             <div className="w-12 h-12 rounded-2xl bg-purple-950/80 border border-purple-500/50 flex items-center justify-center flex-shrink-0 text-purple-300 shadow-md">
