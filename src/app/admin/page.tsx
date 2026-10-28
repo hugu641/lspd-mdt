@@ -9,7 +9,6 @@ import {
   Plus,
   BookOpen,
   Bot,
-  MessageSquare,
   RefreshCw,
   Send,
   Check,
@@ -204,26 +203,6 @@ export default function AdminPage() {
           ...prev,
           [officerId]: `✕ Erreur : ${data.error || "Échec sync"}`,
         }));
-      }
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  // Send Welcome DM for single officer
-  const handleSendOfficerWelcomeDm = async (officerId: string) => {
-    try {
-      setOfficerSyncStatus((prev) => ({ ...prev, [officerId]: "Envoi MP en cours..." }));
-      const res = await fetch("/api/discord/send-dm", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ officerId }),
-      });
-      const data = await res.json();
-      if (res.ok && data.success) {
-        setOfficerSyncStatus((prev) => ({ ...prev, [officerId]: "✓ MP de bienvenue envoyé !" }));
-      } else {
-        setOfficerSyncStatus((prev) => ({ ...prev, [officerId]: `✕ ${data.error || "Échec MP"}` }));
       }
     } catch (err) {
       console.error(err);
@@ -503,20 +482,13 @@ export default function AdminPage() {
                     )}
                   </div>
 
-                  <div className="flex items-center gap-2">
+                  <div>
                     <button
                       onClick={() => handleSyncSingleOfficer(o.id)}
-                      className="flex-1 py-1 px-2 rounded-lg bg-indigo-950/60 hover:bg-indigo-900 border border-indigo-500/40 text-[10px] font-bold text-indigo-300 flex items-center justify-center gap-1"
+                      className="w-full py-1 px-2 rounded-lg bg-indigo-950/60 hover:bg-indigo-900 border border-indigo-500/40 text-[10px] font-bold text-indigo-300 flex items-center justify-center gap-1"
                     >
                       <RefreshCw className="w-2.5 h-2.5" />
-                      <span>Sync Rôles</span>
-                    </button>
-                    <button
-                      onClick={() => handleSendOfficerWelcomeDm(o.id)}
-                      className="flex-1 py-1 px-2 rounded-lg bg-purple-950/60 hover:bg-purple-900 border border-purple-500/40 text-[10px] font-bold text-purple-300 flex items-center justify-center gap-1"
-                    >
-                      <MessageSquare className="w-2.5 h-2.5" />
-                      <span>Envoyer MP</span>
+                      <span>Sync Rôles Discord</span>
                     </button>
                   </div>
 
@@ -668,14 +640,6 @@ export default function AdminPage() {
                           >
                             <RefreshCw className="w-3 h-3" />
                             <span>Sync Rôles</span>
-                          </button>
-                          <button
-                            onClick={() => handleSendOfficerWelcomeDm(o.id)}
-                            title="Envoyer ou renvoyer le MP de bienvenue"
-                            className="px-2.5 py-1 rounded-lg bg-purple-950/80 hover:bg-purple-900 border border-purple-500/40 text-[11px] font-bold text-purple-300 flex items-center gap-1 transition-all"
-                          >
-                            <MessageSquare className="w-3 h-3" />
-                            <span>Envoyer MP</span>
                           </button>
                           {canManageRoles && (
                             <>
