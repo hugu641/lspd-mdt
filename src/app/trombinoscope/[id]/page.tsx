@@ -420,7 +420,7 @@ export default function OfficerProfilePage() {
                 <div className="flex items-center gap-2">
                   <Phone className="w-4 h-4 text-emerald-400" />
                   <div>
-                    <div className="text-[9px] text-slate-400 font-bold uppercase">Téléphone In-Game</div>
+                    <div className="text-[9px] text-slate-400 font-bold uppercase">Téléphone</div>
                     <div className="font-mono text-xs font-black text-emerald-300">
                       {officer.phone || "Non renseigné"}
                     </div>
@@ -770,7 +770,7 @@ export default function OfficerProfilePage() {
 
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1">
-                    Téléphone In-Game
+                    Numéro de Téléphone
                   </label>
                   <input
                     type="text"

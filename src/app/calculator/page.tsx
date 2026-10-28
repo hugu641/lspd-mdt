@@ -588,24 +588,18 @@ export default function CalculatorPage() {
                 </div>
               )}
 
-              {/* Input Fields: Phone (Primary Identifier) + Nom & Prénom */}
+              {/* Input Fields: Phone + Nom & Prénom */}
               <div className="space-y-2.5">
-                {/* Phone In-Game - Primary identifier in city */}
                 <div>
-                  <div className="flex items-center justify-between mb-1">
-                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
-                      <Phone className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>Numéro de Téléphone (In-Game)</span>
-                    </label>
-                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-950/60 text-emerald-300 border border-emerald-500/30 uppercase">
-                      🔑 Identifiant Principal RP
-                    </span>
-                  </div>
+                  <label className="block text-[11px] font-bold text-slate-300 mb-1 flex items-center gap-1.5">
+                    <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                    <span>Numéro de Téléphone</span>
+                  </label>
                   <input
                     type="text"
                     value={citizenPhone}
                     onChange={(e) => setCitizenPhone(e.target.value)}
-                    placeholder="ex: 555-0188 (Tapez pour détecter la fiche...)"
+                    placeholder="ex: 555-0188"
                     className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs font-mono font-bold text-emerald-300 placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-colors"
                   />
                 </div>

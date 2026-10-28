@@ -461,7 +461,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                       </span>
                     </div>
                     <h3 className="text-lg font-black text-white mt-1">
-                      {isMarshalUser ? "Numéro de Téléphone In-Game" : "Fiche Matricule & Identité In-Game"}
+                      {isMarshalUser ? "Numéro de Téléphone" : "Fiche Matricule & Identité"}
                     </h3>
                     <p className="text-xs text-slate-300 mt-1 leading-relaxed">
                       {isMarshalUser
@@ -477,7 +477,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
                     <div className="space-y-3">
                       <div>
                         <label className="block text-xs font-bold text-slate-300 mb-1">
-                          Téléphone en ville (In-Game)
+                          Numéro de Téléphone
                         </label>
                         <div className="relative">
                           <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-purple-400" />
@@ -541,7 +541,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
                         <div>
                           <label className="block text-xs font-bold text-slate-300 mb-1">
-                            Téléphone en ville (In-Game)
+                            Numéro de Téléphone
                           </label>
                           <div className="relative">
                             <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-purple-400" />
