@@ -66,7 +66,7 @@ export default function CalculatorPage() {
 
   const [location, setLocation] = useState("Los Santos");
   const [notes, setNotes] = useState("");
-  const [pleaDiscount, setPleaDiscount] = useState<number>(0);
+  const [probationModifier, setProbationModifier] = useState<number>(0);
   const [submitting, setSubmitting] = useState(false);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
@@ -235,7 +235,7 @@ export default function CalculatorPage() {
 
   const clearBasket = () => {
     setSelectedItems({});
-    setPleaDiscount(0);
+    setProbationModifier(0);
     setNotes("");
     setManualPrisonChecked(null);
     setMirandaNotified(false);
@@ -252,8 +252,9 @@ export default function CalculatorPage() {
     return sum + (item ? item.jailTime * count : 0);
   }, 0);
 
-  const totalFine = Math.round(rawTotalFine * (1 - pleaDiscount / 100));
-  const totalJail = Math.round(rawTotalJail * (1 - pleaDiscount / 100));
+  const modifierMultiplier = 1 + probationModifier / 100;
+  const totalFine = Math.max(0, Math.round(rawTotalFine * modifierMultiplier));
+  const totalJail = Math.max(0, Math.round(rawTotalJail * modifierMultiplier));
   const totalCount = Object.values(selectedItems).reduce((a, b) => a + b, 0);
 
   // Check if any selected item is crime or has jail time
@@ -355,8 +356,10 @@ export default function CalculatorPage() {
       });
 
       let finalNotes = notes.trim();
-      if (pleaDiscount > 0) {
-        finalNotes = `[Plaidoyer coupable: -${pleaDiscount}%] ${finalNotes}`;
+      if (probationModifier > 0) {
+        finalNotes = `[Probation / Circonstance aggravante: +${probationModifier}%] ${finalNotes}`;
+      } else if (probationModifier < 0) {
+        finalNotes = `[Plaidoyer coupable / Coopération: ${probationModifier}%] ${finalNotes}`;
       }
       if (isPrisonActive && mirandaNotified && !finalNotes.includes("DROITS MIRANDA")) {
         finalNotes = `[⚖️ Droits Miranda dûment notifiés et compris] ${finalNotes}`;
@@ -1135,12 +1138,12 @@ export default function CalculatorPage() {
             </div>
 
             {/* =================================================================
-                SECTION 4: SANCTIONS COMPLÉMENTAIRES & PLAIDOYER COUPABLE
+                SECTION 4: SANCTIONS ET PROBATION
                 ================================================================= */}
             <div className="space-y-3 p-4 rounded-2xl bg-[#070916] border border-[#1a1f3c]">
               <span className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
                 <Scale className="w-3.5 h-3.5 text-purple-400" />
-                <span>4. Sanctions & Plaidoyer</span>
+                <span>4. Sanctions et probation</span>
               </span>
 
               {/* Secondary Sanctions Alert Box if any */}
@@ -1160,33 +1163,55 @@ export default function CalculatorPage() {
                 </div>
               )}
 
-              {/* Guilty Plea Discount Selector */}
+              {/* Sanctions & Probation Modifier Selector */}
               <div className="space-y-1.5">
                 <div className="flex items-center justify-between text-xs font-semibold text-slate-300">
                   <span className="flex items-center gap-1.5">
                     <Percent className="w-3.5 h-3.5 text-purple-400" />
-                    <span>Plaidoyer Coupable</span>
+                    <span>Sanctions et probation</span>
                   </span>
-                  <span className="text-[11px] font-mono text-purple-300 font-bold">
-                    {pleaDiscount > 0 ? `-${pleaDiscount}% appliquée` : "Plein tarif (0%)"}
+                  <span className={`text-[11px] font-mono font-bold ${
+                    probationModifier > 0
+                      ? "text-rose-400"
+                      : probationModifier < 0
+                      ? "text-emerald-400"
+                      : "text-slate-400"
+                  }`}>
+                    {probationModifier > 0
+                      ? `+${probationModifier}% (Majoration / Probation)`
+                      : probationModifier < 0
+                      ? `${probationModifier}% (Plaidoyer coupable)`
+                      : "Peine standard (0%)"}
                   </span>
                 </div>
 
                 <div className="grid grid-cols-3 gap-2">
-                  {[0, 25, 50].map((disc) => (
-                    <button
-                      key={disc}
-                      type="button"
-                      onClick={() => setPleaDiscount(disc)}
-                      className={`py-2 rounded-xl text-xs font-bold border transition-all ${
-                        pleaDiscount === disc
-                          ? "bg-purple-600 text-white border-purple-500 shadow-md shadow-purple-900/40"
-                          : "bg-[#0c0f24] text-slate-400 border-[#1f2650] hover:bg-[#15193d] hover:text-white"
-                      }`}
-                    >
-                      {disc === 0 ? "Standard (0%)" : `-${disc}%`}
-                    </button>
-                  ))}
+                  {[
+                    { value: 0, label: "0", sub: "Standard" },
+                    { value: 25, label: "+ 25", sub: "Probation" },
+                    { value: -25, label: "- 25", sub: "Plaidoyer" },
+                  ].map((opt) => {
+                    const isSelected = probationModifier === opt.value;
+                    return (
+                      <button
+                        key={opt.value}
+                        type="button"
+                        onClick={() => setProbationModifier(opt.value)}
+                        className={`py-2 px-3 rounded-xl text-xs font-black transition-all flex flex-col items-center justify-center border ${
+                          isSelected
+                            ? opt.value === 25
+                              ? "bg-rose-950/80 text-rose-200 border-rose-500 shadow-md shadow-rose-950/50"
+                              : opt.value === -25
+                              ? "bg-emerald-950/80 text-emerald-200 border-emerald-500 shadow-md shadow-emerald-950/50"
+                              : "bg-purple-600 text-white border-purple-500 shadow-md shadow-purple-900/40"
+                            : "bg-[#0c0f24] text-slate-400 border-[#1f2650] hover:bg-[#15193d] hover:text-white"
+                        }`}
+                      >
+                        <span className="text-sm font-black font-mono">{opt.label}</span>
+                        <span className="text-[10px] opacity-80 uppercase tracking-wider font-semibold">{opt.sub}</span>
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </div>
