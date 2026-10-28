@@ -1150,3 +1150,264 @@ export async function createOrEnsureRecruiterRole() {
     };
   }
 }
+
+/**
+ * Create or ensure the "Cadet LSPD" role exists on the Discord Server
+ */
+export async function createOrEnsureCadetRole() {
+  const config = await getDiscordConfig();
+  const token = config.botToken;
+  const guildId = config.guildId;
+
+  if (!token || !guildId) {
+    return {
+      success: false,
+      error: "Bot Discord ou Serveur Discord non configuré dans l'Administration.",
+    };
+  }
+
+  try {
+    const rolesRes = await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
+      headers: { Authorization: `Bot ${token}` },
+    });
+
+    if (!rolesRes.ok) {
+      return {
+        success: false,
+        error: "Impossible d'accéder aux rôles du serveur Discord.",
+      };
+    }
+
+    const allRoles: any[] = await rolesRes.json();
+
+    const existing = allRoles.find(
+      (r) =>
+        r.name.toLowerCase().trim() === "cadet lspd" ||
+        r.name.toLowerCase().trim() === "cadet" ||
+        r.name.toLowerCase().trim() === "recrue" ||
+        r.name.toLowerCase().trim() === "candidat retenu" ||
+        r.name.toLowerCase().trim() === "candidature acceptée"
+    );
+
+    if (existing) {
+      return {
+        success: true,
+        created: false,
+        role: existing,
+      };
+    }
+
+    // Create Cadet role
+    const createRes = await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
+      method: "POST",
+      headers: {
+        Authorization: `Bot ${token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        name: "Cadet LSPD",
+        color: 0x3b82f6, // Police Blue
+        hoist: true,
+        mentionable: true,
+      }),
+    });
+
+    if (!createRes.ok) {
+      const errJson = await createRes.json().catch(() => ({}));
+      return {
+        success: false,
+        error: `Échec de création du rôle Cadet sur Discord: ${JSON.stringify(errJson)}`,
+      };
+    }
+
+    const created = await createRes.json();
+    return {
+      success: true,
+      created: true,
+      role: created,
+    };
+  } catch (err: any) {
+    console.error("createOrEnsureCadetRole error:", err);
+    return { success: false, error: err?.message || "Erreur API Discord" };
+  }
+}
+
+/**
+ * Assigns Discord role to accepted candidate and sends official Discord notification DM
+ */
+export async function assignRecruitmentAcceptedDiscordRoleAndNotify(
+  candidate: {
+    id: string;
+    firstName: string;
+    lastName: string;
+    discordId?: string | null;
+    interviewDate?: Date | string | null;
+  },
+  recruiterOfficer?: {
+    name?: string;
+    rank?: string;
+    badgeNumber?: string;
+  } | null
+) {
+  const config = await getDiscordConfig();
+  const token = config.botToken;
+  const guildId = config.guildId;
+
+  if (!token || !guildId) {
+    return {
+      success: false,
+      error: "Bot Discord ou Serveur Discord non configuré.",
+    };
+  }
+
+  const cleanDiscordId = (candidate.discordId || "").trim().replace(/[<@!>]/g, "");
+  if (!cleanDiscordId || !/^\d{17,20}$/.test(cleanDiscordId)) {
+    return {
+      success: false,
+      roleGranted: false,
+      dmSent: false,
+      error: "Identifiant Discord manquant ou invalide pour ce candidat.",
+    };
+  }
+
+  try {
+    // 1. Get or create Cadet role
+    const cadetRoleResult = await createOrEnsureCadetRole();
+    if (!cadetRoleResult.success || !cadetRoleResult.role) {
+      return {
+        success: false,
+        roleGranted: false,
+        dmSent: false,
+        error: cadetRoleResult.error || "Impossible d'obtenir le rôle Cadet LSPD sur Discord.",
+      };
+    }
+    const cadetRoleId = cadetRoleResult.role.id;
+    const cadetRoleName = cadetRoleResult.role.name;
+
+    // 2. Check if candidate is on the guild
+    const memberRes = await fetch(
+      `https://discord.com/api/v10/guilds/${guildId}/members/${cleanDiscordId}`,
+      { headers: { Authorization: `Bot ${token}` } }
+    );
+
+    let roleGranted = false;
+    let memberNotFound = false;
+
+    if (!memberRes.ok) {
+      memberNotFound = true;
+    } else {
+      // 3. Assign role to candidate
+      const assignRes = await fetch(
+        `https://discord.com/api/v10/guilds/${guildId}/members/${cleanDiscordId}/roles/${cadetRoleId}`,
+        {
+          method: "PUT",
+          headers: { Authorization: `Bot ${token}` },
+        }
+      );
+      if (assignRes.ok || assignRes.status === 204) {
+        roleGranted = true;
+      }
+    }
+
+    // 4. Send official Acceptance DM via Bot
+    const recruiterLabel = recruiterOfficer?.rank
+      ? `${recruiterOfficer.rank} ${recruiterOfficer.name} (#${recruiterOfficer.badgeNumber})`
+      : "Division Recrutement LSPD";
+
+    const embedFields: any[] = [
+      {
+        name: "📋 Décision du Recrutement",
+        value: "✅ **Candidature Acceptée**",
+        inline: true,
+      },
+      {
+        name: "🎖️ Rôle Discord Obtenu",
+        value: `\`${cadetRoleName}\``,
+        inline: true,
+      },
+      {
+        name: "👮‍♂️ Officier Référent",
+        value: recruiterLabel,
+        inline: true,
+      },
+    ];
+
+    if (candidate.interviewDate) {
+      embedFields.push({
+        name: "📅 Convocation Entretien / Session",
+        value: `**${new Date(candidate.interviewDate).toLocaleString("fr-FR", {
+          day: "2-digit",
+          month: "long",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        })}**`,
+        inline: false,
+      });
+    }
+
+    embedFields.push(
+      {
+        name: "🚪 Accès aux Salons Débloqués",
+        value:
+          "Votre nouveau rôle vous donne immédiatement accès aux salons de recrutement, annonces d'incorporation et canaux vocaux réservés sur notre serveur Discord.",
+        inline: false,
+      },
+      {
+        name: "📌 Consignes d'Intégration",
+        value:
+          "• Rendez-vous dans les salons Discord nouvellement débloqués.\n• Munissez-vous de vos papiers d'identité en jeu et préparez-vous pour votre intégration.\n• Respectez le règlement et les instructions du service.",
+        inline: false,
+      }
+    );
+
+    const dmResult = await sendDiscordDM(cleanDiscordId, {
+      content: `🎉 Félicitations **${candidate.firstName} ${candidate.lastName}** ! Votre candidature au sein du **Los Santos Police Department** a été acceptée !`,
+      embeds: [
+        {
+          title: "🛡️ LOS SANTOS POLICE DEPARTMENT • DOSSIER D'ADMISSION",
+          color: 0x10b981, // Emerald Green
+          description: `Bonjour **${candidate.firstName} ${candidate.lastName}**,\n\nNous avons le plaisir de vous informer que votre candidature a été **validée avec succès** par la Division du Recrutement.`,
+          fields: embedFields,
+          footer: {
+            text: "LSPD Recruitment Division • Notification Sécurisée Automatique",
+          },
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    });
+
+    // 5. Update candidate in database
+    await prisma.recruitmentCandidate.update({
+      where: { id: candidate.id },
+      data: {
+        status: "Accepté",
+        discordRoleGranted: roleGranted,
+        discordNotified: dmResult.success,
+      },
+    });
+
+    if (memberNotFound) {
+      return {
+        success: true,
+        roleGranted: false,
+        dmSent: dmResult.success,
+        warning:
+          "Le candidat n'a pas encore rejoint le serveur Discord LSPD. Le MP a été envoyé, mais le rôle Discord n'a pas pu être assigné.",
+      };
+    }
+
+    return {
+      success: true,
+      roleGranted,
+      dmSent: dmResult.success,
+      message: `Rôle "${cadetRoleName}" attribué sur Discord et notification MP envoyée !`,
+    };
+  } catch (err: any) {
+    console.error("assignRecruitmentAcceptedDiscordRoleAndNotify error:", err);
+    return {
+      success: false,
+      error: err?.message || "Erreur interne lors de l'attribution du rôle et de la notification",
+    };
+  }
+}

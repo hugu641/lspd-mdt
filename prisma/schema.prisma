@@ -261,21 +261,25 @@ model DiscordSetting {
 }
 
 model RecruitmentCandidate {
-  id              String    @id @default(cuid())
-  firstName       String
-  lastName        String
-  phone           String?
-  discordTag      String?
-  discordId       String?
-  age             Int?
-  motivation      String?
-  experience      String?
-  status          String    @default("En attente") // En attente, Entretien prévu, Accepté, Refusé
-  interviewDate   DateTime?
-  interviewNotes  String?
-  decisionReason  String?
-  recruiterId     String?
-  recruiter       Officer?  @relation(fields: [recruiterId], references: [id], onDelete: SetNull)
-  createdAt       DateTime  @default(now())
-  updatedAt       DateTime  @updatedAt
+  id                 String    @id @default(cuid())
+  firstName          String
+  lastName           String
+  phone              String?
+  discordTag         String?
+  discordId          String?
+  discordAvatar      String?
+  age                Int?
+  availability       String?
+  motivation         String?
+  experience         String?
+  status             String    @default("En attente") // En attente, Entretien prévu, Accepté, Refusé
+  interviewDate      DateTime?
+  interviewNotes     String?
+  decisionReason     String?
+  discordRoleGranted Boolean   @default(false)
+  discordNotified    Boolean   @default(false)
+  recruiterId        String?
+  recruiter          Officer?  @relation(fields: [recruiterId], references: [id], onDelete: SetNull)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
 }

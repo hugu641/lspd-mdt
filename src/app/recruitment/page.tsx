@@ -32,6 +32,9 @@ import {
   Check,
   XCircle,
   UserCheck,
+  Copy,
+  Link as LinkIcon,
+  MessageSquare,
 } from "lucide-react";
 
 interface Candidate {
@@ -41,13 +44,17 @@ interface Candidate {
   phone?: string | null;
   discordTag?: string | null;
   discordId?: string | null;
+  discordAvatar?: string | null;
   age?: number | null;
+  availability?: string | null;
   motivation?: string | null;
   experience?: string | null;
   status: "En attente" | "Entretien prévu" | "Accepté" | "Refusé";
   interviewDate?: string | null;
   interviewNotes?: string | null;
   decisionReason?: string | null;
+  discordRoleGranted?: boolean;
+  discordNotified?: boolean;
   recruiterId?: string | null;
   recruiter?: {
     id: string;
@@ -83,9 +90,10 @@ export default function RecruitmentPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("Tous");
 
-  // Discord role creation bot state
+  // Bot & Role actions state
   const [botLoading, setBotLoading] = useState(false);
   const [botFeedback, setBotFeedback] = useState<{ text: string; success: boolean } | null>(null);
+  const [copiedLink, setCopiedLink] = useState(false);
 
   // Candidate creation modal state
   const [showCreateModal, setShowCreateModal] = useState(false);
@@ -94,9 +102,11 @@ export default function RecruitmentPage() {
     lastName: "",
     phone: "555-",
     discordTag: "",
+    discordId: "",
     age: "",
     motivation: "",
     experience: "",
+    availability: "",
     status: "En attente",
   });
   const [savingCandidate, setSavingCandidate] = useState(false);
@@ -109,6 +119,7 @@ export default function RecruitmentPage() {
   const [editDecisionReason, setEditDecisionReason] = useState<string>("");
   const [editRecruiterId, setEditRecruiterId] = useState<string>("");
   const [savingEdit, setSavingEdit] = useState(false);
+  const [discordAccepting, setDiscordAccepting] = useState(false);
 
   // Recruiter toggle state
   const [togglingOfficerId, setTogglingOfficerId] = useState<string | null>(null);
@@ -141,6 +152,16 @@ export default function RecruitmentPage() {
     Promise.all([fetchCandidates(), fetchOfficers()]).finally(() => setLoading(false));
   }, []);
 
+  // Copy Public Application Link
+  const handleCopyApplicationLink = () => {
+    if (typeof window !== "undefined") {
+      const url = `${window.location.origin}/recruitment/apply`;
+      navigator.clipboard.writeText(url);
+      setCopiedLink(true);
+      setTimeout(() => setCopiedLink(false), 3000);
+    }
+  };
+
   // Request bot to create or verify recruiter role on Discord
   const handleTriggerBotRole = async () => {
     setBotLoading(true);
@@ -171,7 +192,43 @@ export default function RecruitmentPage() {
     }
   };
 
-  // Submit new candidate
+  // Accept candidate and grant Discord role + send DM notification
+  const handleAcceptAndNotifyDiscord = async (cand: Candidate) => {
+    setDiscordAccepting(true);
+    try {
+      const res = await fetch(`/api/recruitment/candidates/${cand.id}/accept-discord`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recruiterOfficer: currentOfficer,
+        }),
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setBotFeedback({
+          text: data.message || "Candidat accepté ! Rôle Discord attribué et notification MP envoyée.",
+          success: true,
+        });
+        setSelectedCandidate(null);
+        fetchCandidates();
+      } else {
+        setBotFeedback({
+          text: data.error || "Erreur lors de l'attribution du rôle ou de l'envoi du MP Discord.",
+          success: false,
+        });
+      }
+    } catch (err: any) {
+      setBotFeedback({
+        text: err?.message || "Erreur réseau avec l'API Discord",
+        success: false,
+      });
+    } finally {
+      setDiscordAccepting(false);
+    }
+  };
+
+  // Submit new candidate manually
   const handleCreateCandidate = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCandidate.firstName.trim() || !newCandidate.lastName.trim()) return;
@@ -194,9 +251,11 @@ export default function RecruitmentPage() {
           lastName: "",
           phone: "555-",
           discordTag: "",
+          discordId: "",
           age: "",
           motivation: "",
           experience: "",
+          availability: "",
           status: "En attente",
         });
         fetchCandidates();
@@ -228,8 +287,13 @@ export default function RecruitmentPage() {
       });
 
       if (res.ok) {
-        setSelectedCandidate(null);
-        fetchCandidates();
+        // If status was changed to Accepté and candidate has Discord ID, trigger Discord grant
+        if (editStatus === "Accepté" && selectedCandidate.discordId && !selectedCandidate.discordRoleGranted) {
+          handleAcceptAndNotifyDiscord(selectedCandidate);
+        } else {
+          setSelectedCandidate(null);
+          fetchCandidates();
+        }
       }
     } catch (err) {
       console.error(err);
@@ -395,16 +459,31 @@ export default function RecruitmentPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          {/* Copy Application Link Button */}
+          <button
+            type="button"
+            onClick={handleCopyApplicationLink}
+            className={`px-3.5 py-2.5 rounded-xl border text-xs font-bold transition-all flex items-center gap-2 shadow-lg ${
+              copiedLink
+                ? "bg-emerald-950 border-emerald-500 text-emerald-300"
+                : "bg-slate-900 hover:bg-slate-800 border-slate-700 text-slate-200 hover:text-white"
+            }`}
+            title="Copie le lien du formulaire public que vous pouvez envoyer directement aux candidats"
+          >
+            {copiedLink ? <Check className="w-4 h-4 text-emerald-400" /> : <LinkIcon className="w-4 h-4 text-purple-400" />}
+            <span>{copiedLink ? "Lien copié !" : "🔗 Lien Candidature pour postulants"}</span>
+          </button>
+
           {/* Bot Role Creation Action */}
           <button
             type="button"
             disabled={botLoading}
             onClick={handleTriggerBotRole}
-            className="px-4 py-2.5 rounded-xl bg-purple-950/80 hover:bg-purple-900 border border-purple-600/70 hover:border-purple-400 text-purple-200 hover:text-white text-xs font-bold shadow-lg shadow-purple-950/40 transition-all flex items-center gap-2 disabled:opacity-50"
+            className="px-3.5 py-2.5 rounded-xl bg-purple-950/80 hover:bg-purple-900 border border-purple-600/70 hover:border-purple-400 text-purple-200 hover:text-white text-xs font-bold shadow-lg shadow-purple-950/40 transition-all flex items-center gap-2 disabled:opacity-50"
             title="Envoie une requête à l'API Discord Bot pour créer ou vérifier le rôle Recruteur sur le serveur Discord"
           >
             <Bot className="w-4 h-4 text-purple-400" />
-            <span>{botLoading ? "Requête Bot en cours..." : "⚡ Créer / Vérifier le rôle Discord Recruteur"}</span>
+            <span>{botLoading ? "Requête Bot..." : "⚡ Rôle Discord Recruteur"}</span>
           </button>
 
           {/* New Candidate Button */}
@@ -414,8 +493,48 @@ export default function RecruitmentPage() {
             className="px-4 py-2.5 rounded-xl btn-theme-primary text-xs font-black uppercase tracking-wider shadow-lg flex items-center gap-2 transition-all"
           >
             <Plus className="w-4 h-4" />
-            <span>Nouveau Candidat</span>
+            <span>Ajouter Candidat</span>
           </button>
+        </div>
+      </div>
+
+      {/* Share Application Link Banner */}
+      <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-950/40 via-indigo-950/30 to-purple-950/40 border border-purple-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-purple-900/60 border border-purple-600/50 flex items-center justify-center text-purple-300 flex-shrink-0">
+            <LinkIcon className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="text-xs font-bold text-white flex items-center gap-2">
+              <span>Formulaire de Candidature Public LSPD</span>
+              <span className="text-[10px] px-2 py-0.5 rounded-full bg-purple-900/80 text-purple-200 border border-purple-600/60 font-mono">
+                /recruitment/apply
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-300 mt-0.5">
+              Transmettez ce lien aux joueurs désireux de rejoindre la police. Ils vérifient leur Discord, remplissent leur dossier, et recevront leur rôle Discord automatiquement dès que vous les accepterez.
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <button
+            type="button"
+            onClick={handleCopyApplicationLink}
+            className="px-3 py-1.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-md shadow-purple-950/50 transition-all"
+          >
+            <Copy className="w-3.5 h-3.5" />
+            <span>{copiedLink ? "Copié !" : "Copier le lien"}</span>
+          </button>
+
+          <Link
+            href="/recruitment/apply"
+            target="_blank"
+            className="p-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-300 hover:text-white transition-colors"
+            title="Ouvrir la page de candidature dans un nouvel onglet"
+          >
+            <ExternalLink className="w-4 h-4" />
+          </Link>
         </div>
       </div>
 
@@ -526,16 +645,26 @@ export default function RecruitmentPage() {
               </div>
               <div className="text-sm font-bold text-white">Aucun dossier de candidature trouvé</div>
               <p className="text-xs text-slate-400 max-w-sm mx-auto">
-                Enregistrez un nouveau candidat pour planifier son entretien ou évaluer sa motivation.
+                Partagez le lien de candidature ou enregistrez manuellement un candidat.
               </p>
-              <button
-                type="button"
-                onClick={() => setShowCreateModal(true)}
-                className="px-4 py-2 rounded-xl btn-theme-primary text-xs font-bold inline-flex items-center gap-1.5"
-              >
-                <Plus className="w-4 h-4" />
-                <span>Créer une candidature</span>
-              </button>
+              <div className="flex items-center justify-center gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={handleCopyApplicationLink}
+                  className="px-4 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold inline-flex items-center gap-1.5"
+                >
+                  <Copy className="w-4 h-4" />
+                  <span>Copier le lien public</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowCreateModal(true)}
+                  className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold inline-flex items-center gap-1.5"
+                >
+                  <Plus className="w-4 h-4" />
+                  <span>Nouveau candidat</span>
+                </button>
+              </div>
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -557,19 +686,33 @@ export default function RecruitmentPage() {
                     <div className="space-y-3">
                       {/* Card Header */}
                       <div className="flex items-start justify-between gap-2">
-                        <div>
-                          <h3 className="text-base font-bold text-white group-hover:text-purple-300 transition-colors">
-                            {c.firstName} {c.lastName}
-                          </h3>
-                          <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
-                            {c.age && <span>{c.age} ans</span>}
-                            {c.age && c.phone && <span>•</span>}
-                            {c.phone && (
-                              <span className="font-mono text-amber-400 flex items-center gap-1">
-                                <Phone className="w-3 h-3" />
-                                {c.phone}
-                              </span>
-                            )}
+                        <div className="flex items-center gap-3">
+                          {c.discordAvatar ? (
+                            <img
+                              src={c.discordAvatar}
+                              alt="Avatar"
+                              className="w-10 h-10 rounded-xl object-cover border border-slate-700 flex-shrink-0"
+                            />
+                          ) : (
+                            <div className="w-10 h-10 rounded-xl bg-slate-900 border border-slate-800 flex items-center justify-center text-slate-400 flex-shrink-0">
+                              <UserPlus className="w-5 h-5 text-purple-400" />
+                            </div>
+                          )}
+
+                          <div>
+                            <h3 className="text-base font-bold text-white group-hover:text-purple-300 transition-colors">
+                              {c.firstName} {c.lastName}
+                            </h3>
+                            <div className="flex items-center gap-2 text-xs text-slate-400 mt-0.5">
+                              {c.age && <span>{c.age} ans</span>}
+                              {c.age && c.phone && <span>•</span>}
+                              {c.phone && (
+                                <span className="font-mono text-amber-400 flex items-center gap-1 font-bold">
+                                  <Phone className="w-3 h-3" />
+                                  {c.phone}
+                                </span>
+                              )}
+                            </div>
                           </div>
                         </div>
 
@@ -578,13 +721,42 @@ export default function RecruitmentPage() {
                         </span>
                       </div>
 
-                      {/* Discord Tag */}
-                      {c.discordTag && (
-                        <div className="text-[11px] text-slate-300 flex items-center gap-1.5 p-2 rounded-lg bg-slate-900/60 border border-slate-800">
-                          <Bot className="w-3.5 h-3.5 text-indigo-400" />
-                          <span className="font-mono">{c.discordTag}</span>
+                      {/* Discord Verification & Role Status */}
+                      <div className="p-2.5 rounded-xl bg-slate-900/60 border border-slate-800 space-y-1.5 text-xs">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-mono text-slate-300 flex items-center gap-1.5">
+                            <Bot className="w-3.5 h-3.5 text-indigo-400" />
+                            <span>{c.discordTag || "Discord non lié"}</span>
+                          </span>
+
+                          {c.discordId ? (
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-emerald-950 text-emerald-300 border border-emerald-600/50 flex items-center gap-0.5">
+                              <Check className="w-2.5 h-2.5" />
+                              <span>Vérifié</span>
+                            </span>
+                          ) : (
+                            <span className="text-[9px] text-slate-500 font-semibold">Non vérifié</span>
+                          )}
                         </div>
-                      )}
+
+                        {/* Discord Role Granted / DM Sent Status Badges */}
+                        {(c.discordRoleGranted || c.discordNotified) && (
+                          <div className="flex flex-wrap items-center gap-1.5 pt-1 border-t border-slate-800/60">
+                            {c.discordRoleGranted && (
+                              <span className="px-2 py-0.5 rounded-md text-[9px] font-bold bg-blue-950 text-blue-300 border border-blue-600/50 flex items-center gap-1">
+                                <Shield className="w-2.5 h-2.5" />
+                                <span>Rôle Discord Actif</span>
+                              </span>
+                            )}
+                            {c.discordNotified && (
+                              <span className="px-2 py-0.5 rounded-md text-[9px] font-bold bg-emerald-950 text-emerald-300 border border-emerald-600/50 flex items-center gap-1">
+                                <MessageSquare className="w-2.5 h-2.5" />
+                                <span>MP Envoyé</span>
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </div>
 
                       {/* Motivation Preview */}
                       {c.motivation && (
@@ -637,8 +809,21 @@ export default function RecruitmentPage() {
                         className="px-3 py-1.5 rounded-xl bg-purple-950/60 hover:bg-purple-900 border border-purple-700/50 text-purple-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
                       >
                         <Edit className="w-3.5 h-3.5" />
-                        <span>Évaluer / Décision</span>
+                        <span>Évaluer / Statut</span>
                       </button>
+
+                      {/* Direct Accept & Grant Discord Action if not yet accepted */}
+                      {c.status !== "Accepté" && c.discordId && (
+                        <button
+                          type="button"
+                          onClick={() => handleAcceptAndNotifyDiscord(c)}
+                          className="px-2.5 py-1.5 rounded-xl bg-emerald-950/80 hover:bg-emerald-900 border border-emerald-600/60 text-emerald-300 text-xs font-bold flex items-center gap-1 shadow-md transition-colors"
+                          title="Accepter immédiatement et attribuer le rôle Discord + MP"
+                        >
+                          <Check className="w-3.5 h-3.5" />
+                          <span>Accepter & Rôle</span>
+                        </button>
+                      )}
 
                       <button
                         type="button"
@@ -755,7 +940,7 @@ export default function RecruitmentPage() {
       )}
 
       {/* =====================================================================
-          MODAL 1: CRÉER UNE NOUVELLE CANDIDATURE
+          MODAL 1: CRÉER UNE NOUVELLE CANDIDATURE (MANUELLE)
           ===================================================================== */}
       {showCreateModal && (
         <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
@@ -827,24 +1012,37 @@ export default function RecruitmentPage() {
               </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-300">Identifiant / Pseudo Discord</label>
-              <input
-                type="text"
-                value={newCandidate.discordTag}
-                onChange={(e) => setNewCandidate({ ...newCandidate, discordTag: e.target.value })}
-                placeholder="Ex: johndoe ou @johndoe#1234"
-                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-mono"
-              />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-300">Pseudo Discord</label>
+                <input
+                  type="text"
+                  value={newCandidate.discordTag}
+                  onChange={(e) => setNewCandidate({ ...newCandidate, discordTag: e.target.value })}
+                  placeholder="Ex: johndoe"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-mono"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-300">ID Discord (17-19 chiffres)</label>
+                <input
+                  type="text"
+                  value={newCandidate.discordId}
+                  onChange={(e) => setNewCandidate({ ...newCandidate, discordId: e.target.value })}
+                  placeholder="Ex: 853291..."
+                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-mono"
+                />
+              </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-300">Expérience préalable (RP / Sécurité / etc.)</label>
+              <label className="text-xs font-semibold text-slate-300">Expérience préalable</label>
               <textarea
                 rows={2}
                 value={newCandidate.experience}
                 onChange={(e) => setNewCandidate({ ...newCandidate, experience: e.target.value })}
-                placeholder="Ex-agent BCSO, agent de sécurité Gruppe Sechs..."
+                placeholder="Ex-agent BCSO, agent de sécurité..."
                 className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white"
               />
             </div>
@@ -855,7 +1053,7 @@ export default function RecruitmentPage() {
                 rows={3}
                 value={newCandidate.motivation}
                 onChange={(e) => setNewCandidate({ ...newCandidate, motivation: e.target.value })}
-                placeholder="Pourquoi souhaite-t-il rejoindre le Los Santos Police Department ?"
+                placeholder="Pourquoi souhaite-t-il rejoindre le LSPD ?"
                 className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white"
               />
             </div>
@@ -906,18 +1104,70 @@ export default function RecruitmentPage() {
             </div>
 
             {/* Candidate Summary */}
-            <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-1.5 text-xs text-slate-300">
+            <div className="p-3 rounded-xl bg-slate-900/80 border border-slate-800 space-y-2 text-xs text-slate-300">
               <div className="flex flex-wrap items-center gap-3">
-                {selectedCandidate.phone && <span>📞 {selectedCandidate.phone}</span>}
-                {selectedCandidate.discordTag && <span>💬 {selectedCandidate.discordTag}</span>}
+                {selectedCandidate.phone && (
+                  <span className="font-mono text-amber-400 font-bold">📞 {selectedCandidate.phone}</span>
+                )}
+                {selectedCandidate.discordTag && (
+                  <span className="font-mono text-indigo-300 font-bold">💬 {selectedCandidate.discordTag}</span>
+                )}
+                {selectedCandidate.discordId && (
+                  <span className="font-mono text-slate-400 text-[10px]">ID: {selectedCandidate.discordId}</span>
+                )}
                 {selectedCandidate.age && <span>🎂 {selectedCandidate.age} ans</span>}
               </div>
+
+              {selectedCandidate.availability && (
+                <div className="text-[11px] text-slate-300">
+                  <strong>Disponibilités :</strong> {selectedCandidate.availability}
+                </div>
+              )}
+
+              {selectedCandidate.experience && (
+                <div className="text-[11px] text-slate-300">
+                  <strong>Expérience :</strong> {selectedCandidate.experience}
+                </div>
+              )}
+
               {selectedCandidate.motivation && (
                 <div className="pt-1 text-slate-400 italic">
                   <strong>Motivation :</strong> {selectedCandidate.motivation}
                 </div>
               )}
             </div>
+
+            {/* Discord Role & Notification Quick Banner */}
+            {selectedCandidate.discordId ? (
+              <div className="p-3.5 rounded-xl bg-gradient-to-r from-purple-950/60 to-indigo-950/60 border border-purple-700/60 flex items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="text-xs font-bold text-white flex items-center gap-1.5">
+                    <Bot className="w-4 h-4 text-purple-400" />
+                    <span>Intégration Discord Automatique</span>
+                  </div>
+                  <div className="text-[11px] text-slate-300">
+                    {selectedCandidate.discordRoleGranted
+                      ? "✅ Rôle Cadet attribué sur Discord"
+                      : "Le candidat recevra le rôle Cadet et une notification en MP lors de l'acceptation."}
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  disabled={discordAccepting}
+                  onClick={() => handleAcceptAndNotifyDiscord(selectedCandidate)}
+                  className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-black uppercase tracking-wider shadow-lg flex items-center gap-1.5 whitespace-nowrap disabled:opacity-50"
+                >
+                  <Check className="w-4 h-4" />
+                  <span>{discordAccepting ? "Attribution..." : "⚡ Accepter & Notifier Discord"}</span>
+                </button>
+              </div>
+            ) : (
+              <div className="p-3 rounded-xl bg-amber-950/40 border border-amber-800/40 text-xs text-amber-300 flex items-center gap-2">
+                <AlertTriangle className="w-4 h-4 text-amber-400 flex-shrink-0" />
+                <span>Ce candidat n'a pas vérifié son compte Discord. Le rôle et la notification ne pourront pas être envoyés automatiquement.</span>
+              </div>
+            )}
 
             {/* Decision Status Selector */}
             <div className="space-y-1.5">

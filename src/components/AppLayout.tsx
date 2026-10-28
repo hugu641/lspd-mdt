@@ -189,8 +189,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     setShowPhoneModal(false);
   };
 
-  // On login page, render full screen without dashboard shell
-  if (pathname === "/login") {
+  // On login page or public candidate application page, render full screen without dashboard shell
+  if (pathname === "/login" || pathname?.startsWith("/recruitment/apply")) {
     return <main className="min-h-screen bg-[#07080f]">{children}</main>;
   }
 
