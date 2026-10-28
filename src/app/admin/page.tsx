@@ -13,10 +13,14 @@ import {
   RefreshCw,
   Send,
   Check,
+  Trash2,
+  ShieldAlert,
 } from "lucide-react";
+import { isHighCommand } from "../../lib/ranks";
 
 export default function AdminPage() {
   const { currentOfficer, allOfficers, refreshOfficers } = useOfficer();
+  const canManageRoles = isHighCommand(currentOfficer);
   const [penalCode, setPenalCode] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<"officers" | "penal">("officers");
   const [loading, setLoading] = useState(true);
@@ -242,6 +246,85 @@ export default function AdminPage() {
     }
   };
 
+  // Strip Roles (High Command action)
+  const handleStripOfficerRoles = async (officer: any) => {
+    if (
+      !confirm(
+        `Confirmez-vous le retrait de TOUS les rôles Discord et de police pour l'agent ${officer.name} (#${officer.badgeNumber}) ?`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setOfficerSyncStatus((prev) => ({
+        ...prev,
+        [officer.id]: "Retrait des rôles en cours...",
+      }));
+      const res = await fetch(`/api/officers/${officer.id}/strip-roles`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        setOfficerSyncStatus((prev) => ({
+          ...prev,
+          [officer.id]: `✓ Rôles retirés (${data.removedRoles?.length || 0} sur Discord)`,
+        }));
+        refreshOfficers();
+      } else {
+        setOfficerSyncStatus((prev) => ({
+          ...prev,
+          [officer.id]: `✕ Échec : ${data.error || "Impossible de retirer"}`,
+        }));
+      }
+    } catch (err: any) {
+      setOfficerSyncStatus((prev) => ({
+        ...prev,
+        [officer.id]: `✕ Erreur : ${err.message}`,
+      }));
+    }
+  };
+
+  // Delete Officer (High Command action)
+  const handleDeleteOfficer = async (officer: any) => {
+    if (currentOfficer?.id === officer.id) {
+      alert("Vous ne pouvez pas supprimer votre propre compte.");
+      return;
+    }
+
+    if (
+      !confirm(
+        `⚠️ ACTION IRRÉVERSIBLE :\nÊtes-vous sûr de vouloir supprimer définitivement l'agent ${officer.name} (#${officer.badgeNumber}) du site ?\nSes rôles Discord seront également révoqués.`
+      )
+    ) {
+      return;
+    }
+
+    try {
+      setOfficerSyncStatus((prev) => ({
+        ...prev,
+        [officer.id]: "Suppression en cours...",
+      }));
+      const res = await fetch(`/api/officers/${officer.id}`, {
+        method: "DELETE",
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(`✓ Agent ${officer.name} (#${officer.badgeNumber}) supprimé avec succès du site.`);
+        refreshOfficers();
+      } else {
+        alert(`✕ Erreur : ${data.error || "Échec de la suppression"}`);
+        setOfficerSyncStatus((prev) => ({
+          ...prev,
+          [officer.id]: `✕ ${data.error || "Échec suppression"}`,
+        }));
+      }
+    } catch (err: any) {
+      alert(`✕ Erreur : ${err.message}`);
+    }
+  };
+
   // Create Penal Article
   const handleCreateArticle = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -277,7 +360,18 @@ export default function AdminPage() {
             <Settings className="w-4 h-4" />
             <span>État-Major LSPD & Administration</span>
           </div>
-          <h1 className="text-xl sm:text-2xl font-black text-white mt-0.5">Administration & Code Pénal</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-xl sm:text-2xl font-black text-white mt-0.5">Administration & Code Pénal</h1>
+            {canManageRoles ? (
+              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-emerald-950/80 text-emerald-300 border border-emerald-500/40 font-mono">
+                DROITS HAUT COMMANDEMENT
+              </span>
+            ) : (
+              <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-slate-900 text-slate-400 border border-slate-700 font-mono">
+                CONSULTATION
+              </span>
+            )}
+          </div>
           <p className="text-xs text-slate-300">
             Gestion des effectifs, attribution automatique des rôles Discord, envoi de MP et barème pénal.
           </p>
@@ -426,6 +520,25 @@ export default function AdminPage() {
                     </button>
                   </div>
 
+                  {canManageRoles && (
+                    <div className="flex items-center gap-2 pt-1 border-t border-[#161a33]">
+                      <button
+                        onClick={() => handleStripOfficerRoles(o)}
+                        className="flex-1 py-1 px-2 rounded-lg bg-amber-950/60 hover:bg-amber-900 border border-amber-500/40 text-[10px] font-bold text-amber-300 flex items-center justify-center gap-1 transition-all"
+                      >
+                        <ShieldAlert className="w-2.5 h-2.5 text-amber-400" />
+                        <span>Retirer rôles</span>
+                      </button>
+                      <button
+                        onClick={() => handleDeleteOfficer(o)}
+                        className="flex-1 py-1 px-2 rounded-lg bg-rose-950/60 hover:bg-rose-900 border border-rose-500/40 text-[10px] font-bold text-rose-300 flex items-center justify-center gap-1 transition-all"
+                      >
+                        <Trash2 className="w-2.5 h-2.5 text-rose-400" />
+                        <span>Supprimer</span>
+                      </button>
+                    </div>
+                  )}
+
                   {officerSyncStatus[o.id] && (
                     <div className="text-[10px] text-purple-300 font-mono bg-purple-950/40 p-1.5 rounded-lg border border-purple-500/30">
                       {officerSyncStatus[o.id]}
@@ -564,6 +677,26 @@ export default function AdminPage() {
                             <MessageSquare className="w-3 h-3" />
                             <span>Envoyer MP</span>
                           </button>
+                          {canManageRoles && (
+                            <>
+                              <button
+                                onClick={() => handleStripOfficerRoles(o)}
+                                title="Retirer tous ses rôles Discord et de police"
+                                className="px-2.5 py-1 rounded-lg bg-amber-950/80 hover:bg-amber-900 border border-amber-500/40 text-[11px] font-bold text-amber-300 flex items-center gap-1 transition-all"
+                              >
+                                <ShieldAlert className="w-3 h-3 text-amber-400" />
+                                <span>Retirer rôles</span>
+                              </button>
+                              <button
+                                onClick={() => handleDeleteOfficer(o)}
+                                title="Supprimer définitivement l'agent du site et révoquer ses accès"
+                                className="px-2.5 py-1 rounded-lg bg-rose-950/80 hover:bg-rose-900 border border-rose-500/40 text-[11px] font-bold text-rose-300 flex items-center gap-1 transition-all"
+                              >
+                                <Trash2 className="w-3 h-3 text-rose-400" />
+                                <span>Supprimer</span>
+                              </button>
+                            </>
+                          )}
                         </div>
                         {officerSyncStatus[o.id] && (
                           <div className="text-[10px] text-purple-300 font-mono mt-1">

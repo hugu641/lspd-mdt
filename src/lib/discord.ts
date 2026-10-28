@@ -868,3 +868,97 @@ export async function syncOfficerDiscordRoles(officer: {
     return { success: false, error: err?.message || "Erreur de synchronisation des rôles Discord" };
   }
 }
+
+/**
+ * Strip all police, rank, department, and instructor roles from an officer on Discord
+ */
+export async function stripOfficerDiscordRoles(discordId: string) {
+  const config = await getDiscordConfig();
+  const token = config.botToken;
+  const guildId = config.guildId;
+
+  if (!token || !guildId) {
+    return { success: false, error: "Configuration Discord incomplète (token ou guildId manquant)." };
+  }
+
+  const cleanUserId = discordId.trim().replace(/[<@!>]/g, "");
+  if (!cleanUserId || !/^\d{17,20}$/.test(cleanUserId)) {
+    return { success: false, error: `ID Discord invalide: ${discordId}` };
+  }
+
+  try {
+    // 1. Fetch Guild Roles
+    const rolesRes = await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
+      headers: { Authorization: `Bot ${token}` },
+    });
+    if (!rolesRes.ok) {
+      return { success: false, error: "Impossible de récupérer les rôles du serveur Discord." };
+    }
+    const allRoles: any[] = await rolesRes.json();
+
+    // 2. Fetch Guild Member
+    const memberRes = await fetch(
+      `https://discord.com/api/v10/guilds/${guildId}/members/${cleanUserId}`,
+      {
+        headers: { Authorization: `Bot ${token}` },
+      }
+    );
+    if (!memberRes.ok) {
+      return {
+        success: false,
+        error: `Membre Discord introuvable sur le serveur (ID: ${cleanUserId}).`,
+      };
+    }
+    const member = await memberRes.json();
+    const currentMemberRoleIds: string[] = member.roles || [];
+
+    // 3. Match any role that corresponds to LSPD ranks or police/marshal/fto tags
+    const rolesToStrip = allRoles.filter((r) => {
+      const cleanName = r.name.toLowerCase().replace(/[^a-z0-9]/g, "");
+      const isRank = LSPD_RANK_NAMES.some((rankName) => {
+        const cleanRank = rankName.toLowerCase().replace(/[^a-z0-9]/g, "");
+        return cleanName.includes(cleanRank);
+      });
+      const isServiceRole =
+        cleanName.includes("lspd") ||
+        cleanName.includes("police") ||
+        cleanName.includes("cadet") ||
+        cleanName.includes("rookie") ||
+        cleanName.includes("officier") ||
+        cleanName.includes("sergent") ||
+        cleanName.includes("lieutenant") ||
+        cleanName.includes("capitaine") ||
+        cleanName.includes("commandant") ||
+        cleanName.includes("fto") ||
+        cleanName.includes("instructeur") ||
+        cleanName.includes("marshal") ||
+        cleanName.includes("marshall");
+
+      return isRank || isServiceRole;
+    });
+
+    const removedRoles: string[] = [];
+    for (const r of rolesToStrip) {
+      if (currentMemberRoleIds.includes(r.id)) {
+        const delRes = await fetch(
+          `https://discord.com/api/v10/guilds/${guildId}/members/${cleanUserId}/roles/${r.id}`,
+          {
+            method: "DELETE",
+            headers: { Authorization: `Bot ${token}` },
+          }
+        );
+        if (delRes.ok) {
+          removedRoles.push(r.name);
+        }
+      }
+    }
+
+    return {
+      success: true,
+      removedRoles,
+    };
+  } catch (err: any) {
+    console.error("stripOfficerDiscordRoles error:", err);
+    return { success: false, error: err?.message || "Erreur lors du retrait des rôles Discord" };
+  }
+}
