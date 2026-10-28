@@ -1,0 +1,73 @@
+{
+  "title": "GRILLE TARIFAIRE ET SALARIALE OFFICIELLE - LSPD",
+  "currency": "$",
+  "period": "par service / paie",
+  "grades": [
+    {
+      "rank": "Cadet",
+      "salary": "2 000$",
+      "prime": "250$",
+      "description": "Période probatoire en académie de police"
+    },
+    {
+      "rank": "Officier I",
+      "salary": "2 500$",
+      "prime": "300$",
+      "description": "Agent titulaire en patrouille sous supervision"
+    },
+    {
+      "rank": "Officier II",
+      "salary": "3 000$",
+      "prime": "400$",
+      "description": "Agent autonome en patrouille régulière"
+    },
+    {
+      "rank": "Officier III / Senior Lead Officer",
+      "salary": "3 500$",
+      "prime": "500$",
+      "description": "Formateur de terrain et référent patrouille"
+    },
+    {
+      "rank": "Sergent I",
+      "salary": "4 200$",
+      "prime": "600$",
+      "description": "Superviseur de patrouille et gestion opérationnelle"
+    },
+    {
+      "rank": "Sergent II",
+      "salary": "4 800$",
+      "prime": "700$",
+      "description": "Sous-officier supérieur et gestion d'unité"
+    },
+    {
+      "rank": "Lieutenant",
+      "salary": "5 500$",
+      "prime": "850$",
+      "description": "Commandant de division ou de quart"
+    },
+    {
+      "rank": "Capitaine",
+      "salary": "6 500$",
+      "prime": "1 000$",
+      "description": "Haut commandement de station"
+    },
+    {
+      "rank": "Commandant / État-Major",
+      "salary": "7 500$",
+      "prime": "1 200$",
+      "description": "Direction générale du département"
+    },
+    {
+      "rank": "Chef de la Police",
+      "salary": "9 000$",
+      "prime": "1 500$",
+      "description": "Direction suprême du LSPD"
+    }
+  ],
+  "primes_speciales": [
+    { "nom": "Prime SWAT / Metro", "montant": "+500$ par intervention" },
+    { "nom": "Prime K-9", "montant": "+300$ par service" },
+    { "nom": "Prime Enquêteur (DDC)", "montant": "+400$ par dossier résolu" },
+    { "nom": "Prime Formateur FTO", "montant": "+350$ par cadet formé" }
+  ]
+}

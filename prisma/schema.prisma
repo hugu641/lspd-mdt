@@ -1,0 +1,239 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Officer {
+  id              String   @id @default(cuid())
+  badgeNumber     String   @unique
+  name            String
+  callsign        String
+  rank            String   // Rookie, Officier I, ..., Chief of Police
+  department      String   @default("LSPD") // LSPD, BCSO, SASP (EMS prévu)
+  avatarUrl       String?
+  phone           String?
+  status          String   @default("10-10") // 10-8, 10-7, 10-6, 10-10
+  unitType        String   @default("Lincoln") // Lincoln, Adam, Tango, Mary, Henry, David, Nora
+  isInstructor    Boolean  @default(false)
+  isAdmin         Boolean  @default(false)
+  createdAt       DateTime @default(now())
+
+  // Relations
+  citations       Citation[]
+  arrestReports   ArrestReport[]
+  warrantsIssued  Warrant[]
+  leadCases       Investigation[]
+  badges          OfficerBadge[]
+  instructedTrainings TrainingSession[]
+  registrations   TrainingRegistration[]
+  createdCourses  TrainingCourse[]
+}
+
+model Citizen {
+  id              String   @id @default(cuid())
+  firstName       String
+  lastName        String
+  birthDate       String   // YYYY-MM-DD
+  gender          String   @default("M")
+  phone           String?
+  address         String?
+  job             String?  @default("Sans emploi")
+  photoUrl        String?
+  driverLicense   String   @default("Valide") // Valide, Suspendu, Révoqué, Non titulaire
+  weaponLicense   String   @default("Non titulaire") // Valide, Suspendu, Révoqué, Non titulaire
+  notes           String?
+  dangerLevel     String   @default("Faible") // Faible, Modéré, Élevé, Armé et dangereux
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  // Relations
+  citations       Citation[]
+  arrestReports   ArrestReport[]
+  warrants        Warrant[]
+  weapons         RegisteredWeapon[]
+  vehicles        RegisteredVehicle[]
+}
+
+model PenalCodeItem {
+  id                String   @id @default(cuid())
+  code              String   @unique // CP 100, CP 200, CD 19...
+  title             String
+  category          String   // Contraventions, Délits, Crimes, Crimes fédéraux
+  fine              Int      // En dollars
+  jailTime          Int      @default(0) // En minutes
+  secondarySanction String?  // Suspension de permis, confiscation...
+  orderIndex        Int      @default(0)
+
+  citationItems     CitationItem[]
+}
+
+model Citation {
+  id              String         @id @default(cuid())
+  citationNumber  String         @unique
+  citizenId       String
+  citizen         Citizen        @relation(fields: [citizenId], references: [id], onDelete: Cascade)
+  officerId       String
+  officer         Officer        @relation(fields: [officerId], references: [id])
+  location        String?
+  notes           String?
+  totalFine       Int
+  totalJailTime   Int            @default(0)
+  status          String         @default("Impayée") // Impayée, Payée, Classée
+  createdAt       DateTime       @default(now())
+
+  items           CitationItem[]
+}
+
+model CitationItem {
+  id              String        @id @default(cuid())
+  citationId      String
+  citation        Citation      @relation(fields: [citationId], references: [id], onDelete: Cascade)
+  penalCodeItemId String
+  penalCodeItem   PenalCodeItem @relation(fields: [penalCodeItemId], references: [id])
+  count           Int           @default(1)
+  fine            Int
+  jailTime        Int           @default(0)
+}
+
+model ArrestReport {
+  id              String   @id @default(cuid())
+  reportNumber    String   @unique
+  title           String
+  location        String
+  summary         String
+  seizedItems     String?  // Armes, drogues, argent...
+  proofUrls       String?  // Liens d'images / vidéos
+  status          String   @default("Clos") // En cours, Clos, Transmis Parquet
+  officerId       String
+  officer         Officer  @relation(fields: [officerId], references: [id])
+  citizenId       String
+  citizen         Citizen  @relation(fields: [citizenId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Warrant {
+  id              String    @id @default(cuid())
+  warrantNumber   String    @unique
+  type            String    @default("WARRANT") // WARRANT (mandat d'arrêt), BOLO_PERSON, BOLO_VEHICLE
+  title           String
+  description     String
+  dangerLevel     String    @default("Dangereux") // Modéré, Dangereux, Armé et dangereux
+  status          String    @default("Actif") // Actif, Exécuté, Annulé, Expiré
+  officerId       String
+  officer         Officer   @relation(fields: [officerId], references: [id])
+  citizenId       String?
+  citizen         Citizen?  @relation(fields: [citizenId], references: [id])
+  vehiclePlate    String?
+  createdAt       DateTime  @default(now())
+  expiresAt       DateTime?
+}
+
+model RegisteredVehicle {
+  id              String   @id @default(cuid())
+  plate           String   @unique
+  model           String
+  color           String
+  status          String   @default("En règle") // En règle, Volé, BOLO / Recherché, Fourrière
+  notes           String?
+  ownerId         String?
+  owner           Citizen? @relation(fields: [ownerId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model RegisteredWeapon {
+  id              String   @id @default(cuid())
+  serialNumber    String   @unique
+  weaponType      String   // Pistolet, Fusil, Automatique, etc.
+  modelName       String
+  status          String   @default("En règle") // En règle, Volée, Confisquée, Recherche
+  notes           String?
+  ownerId         String?
+  owner           Citizen? @relation(fields: [ownerId], references: [id])
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model Investigation {
+  id              String   @id @default(cuid())
+  caseNumber      String   @unique
+  title           String
+  summary         String
+  status          String   @default("Ouvert") // Ouvert, En cours, Transmis Justice, Clos
+  dangerLevel     String   @default("Moyen")
+  leadOfficerId   String
+  leadOfficer     Officer  @relation(fields: [leadOfficerId], references: [id])
+  suspects        String?  // Liste ou IDs de suspects
+  evidence        String?  // Rapport de preuves / photos / saisies
+  notes           String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+}
+
+model TrainingCourse {
+  id               String   @id @default(cuid())
+  title            String
+  description      String
+  category         String   // Conduite, Tactique, Aérien, Spécialité, Procédure
+  badgeName        String
+  badgeIcon        String   @default("Award")
+  prerequisiteRank String?  // Grade minimum
+  creatorId        String?
+  creator          Officer? @relation(fields: [creatorId], references: [id])
+  createdAt        DateTime @default(now())
+
+  sessions         TrainingSession[]
+  awardedBadges    OfficerBadge[]
+}
+
+model TrainingSession {
+  id              String   @id @default(cuid())
+  courseId        String
+  course          TrainingCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  instructorId    String
+  instructor      Officer  @relation(fields: [instructorId], references: [id])
+  scheduledAt     DateTime
+  location        String
+  maxSeats        Int      @default(6)
+  status          String   @default("Planifiée") // Planifiée, En cours, Terminée, Annulée
+  notes           String?
+  createdAt       DateTime @default(now())
+
+  registrations   TrainingRegistration[]
+}
+
+model TrainingRegistration {
+  id              String   @id @default(cuid())
+  sessionId       String
+  session         TrainingSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  officerId       String
+  officer         Officer  @relation(fields: [officerId], references: [id], onDelete: Cascade)
+  status          String   @default("Inscrit") // Inscrit, Validé, Échoué, Absent
+  notes           String?
+  registeredAt    DateTime @default(now())
+  completedAt     DateTime?
+}
+
+model OfficerBadge {
+  id              String         @id @default(cuid())
+  officerId       String
+  officer         Officer        @relation(fields: [officerId], references: [id], onDelete: Cascade)
+  courseId        String
+  course          TrainingCourse @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  awardedAt       DateTime       @default(now())
+  awardedBy       String?
+}
+
+model RadioCodeReference {
+  id              String   @id @default(cuid())
+  codeType        String   // TEN_CODE, UNIT_CALLSIGN, URGENCY_CODE, PROCEDURE
+  code            String
+  title           String
+  description     String?
+  orderIndex      Int      @default(0)
+}

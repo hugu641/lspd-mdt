@@ -1,0 +1,99 @@
+{
+  "lastMessageId": null,
+  "levels": {
+    "1": {
+      "level": 1,
+      "name": "DEFCON 1 — ALERTE MAXIMALE / ÉTAT D'URGENCE",
+      "color": "#DC2626",
+      "status": "DANGER CRITIQUE - SÉCURITÉ DU TERRITOIRE COMPROMISE",
+      "description": "Menace terroriste avérée, assaut généralisé sur les infrastructures publiques ou émeutes armées majeures.",
+      "directives": [
+        "Gilet pare-balles lourd et armement lourd obligatoires (Fusil d'assaut / Pompe).",
+        "Patrouilles obligatoires par escouade de 2 à 4 officiers minimum.",
+        "Contrôles d'identité systématiques et fouilles de sécurité sur voie publique.",
+        "Tir létal autorisé en cas de menace directe sans sommation.",
+        "Postes de police et bâtiments gouvernementaux placés en confinement strict (Lockdown)."
+      ],
+      "informations": [
+        "Couvre-feu immédiat décrété sur tout le comté de Los Santos.",
+        "Restez confinés chez vous et informés uniquement via les canaux officiels.",
+        "Les forces de l'ordre sont autorisées à interpeller toute personne sur la voie publique."
+      ]
+    },
+    "2": {
+      "level": 2,
+      "name": "DEFCON 2 — ALERTE ÉLEVÉE / MENACE IMMINENTE",
+      "color": "#EA580C",
+      "status": "SITUATION À HAUT RISQUE",
+      "description": "Groupes armés hostiles en activité, prise d'otages majeure ou risques imminents d'attaques ciblées.",
+      "directives": [
+        "Port du gilet pare-balles lourd apparent obligatoire pour toutes les unités.",
+        "Armement lourd en dotation autorisé dans les coffres de patrouille.",
+        "Patrouilles obligatoirement en binôme (Patrouille solo strictement interdite).",
+        "Vigilance accrue lors des contrôles routiers (Code 5 systématique)."
+      ],
+      "informations": [
+        "Limitez les déplacements non essentiels dans les zones signalées.",
+        "Signalez tout individu ou véhicule suspect au central d'urgence.",
+        "Coordination active avec les unités d'intervention SWAT et EMS."
+      ]
+    },
+    "3": {
+      "level": 3,
+      "name": "DEFCON 3 — SITUATION ÉLEVÉE",
+      "color": "#F59E0B",
+      "status": "MENACE RÉELLE ET CRÉDIBLE IDENTIFIÉE",
+      "description": "Une menace réelle et crédible est identifiée sur le territoire de San Andreas. Le Gouvernement renforce la vigilance et met en place des mesures préventives afin de garantir la sécurité de tous.",
+      "directives": [
+        "Surveillance renforcée des zones sensibles (bâtiments publics, infrastructures, points stratégiques).",
+        "Contrôles accrus sur les accès et les déplacements.",
+        "Patrouilles régulières des forces de l'ordre sur l'ensemble du territoire.",
+        "Coordination avec les services partenaires (gouvernement, police, sécurité civile).",
+        "Maintien de la coopération citoyenne et des dispositifs d'alerte."
+      ],
+      "informations": [
+        "La situation est sous contrôle. Aucune menace immédiate n'a été détectée.",
+        "Restez informés uniquement via les canaux officiels du Gouvernement de Los Santos.",
+        "Évitez de propager des rumeurs et vérifiez l'information sur les sources officielles."
+      ]
+    },
+    "4": {
+      "level": 4,
+      "name": "DEFCON 4 — SITUATION ÉLEVÉE",
+      "color": "#3B82F6",
+      "status": "MENACE IMPORTANTE DÉTECTÉE",
+      "description": "Une menace importante est actuellement détectée sur le territoire de San Andreas. Le Gouvernement renforce la vigilance et met en place des mesures préventives afin de garantir la sécurité de tous.",
+      "directives": [
+        "Surveillance renforcée des zones sensibles (bâtiments publics, infrastructures, points stratégiques).",
+        "Contrôles accrus sur les accès et les déplacements.",
+        "Patrouilles régulières des forces de l'ordre sur l'ensemble du territoire.",
+        "Coordination avec les services partenaires (gouvernement, police, sécurité civile).",
+        "Maintien de la coopération citoyenne et des dispositifs d'alerte."
+      ],
+      "informations": [
+        "La situation est sous contrôle. Aucune menace immédiate n'a été détectée.",
+        "Restez informés uniquement via les canaux officiels du Gouvernement de Los Santos.",
+        "Évitez de propager des rumeurs et vérifiez l'information sur les sources officielles."
+      ]
+    },
+    "5": {
+      "level": 5,
+      "name": "DEFCON 5 — SITUATION NORMALE",
+      "color": "#10B981",
+      "status": "SITUATION NORMALE & CALME",
+      "description": "Aucune menace significative n'est actuellement identifiée sur le territoire de San Andreas. Le Gouvernement maintient une vigilance constante afin de garantir la sécurité de tous les citoyens et de prévenir tout risque potentiel.",
+      "directives": [
+        "Surveillance et contrôle des zones sensibles.",
+        "Présence renforcée des forces de l'ordre.",
+        "Patrouilles régulières sur l'ensemble du territoire.",
+        "Coordination avec les services partenaires.",
+        "Maintien de la coopération citoyenne."
+      ],
+      "informations": [
+        "La situation est sous contrôle. Aucune menace immédiate n'a été détectée.",
+        "Restez informés uniquement via les canaux officiels du Gouvernement de Los Santos.",
+        "En cas de doute, contactez les autorités compétentes."
+      ]
+    }
+  }
+}

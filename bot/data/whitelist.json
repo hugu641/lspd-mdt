@@ -1,0 +1,15 @@
+{
+  "description": "Liste blanche des serveurs Discord et codes d'invitation autorisés sur le Discord LSPD",
+  "allowedGuildIds": [
+    "1505337227192832051",
+    "1560732558764023818",
+    "1560961084259569789"
+  ],
+  "allowedInviteCodes": [
+    "SwyWHQUnhy",
+    "5Wv4VMq7Bq",
+    "Ew3KzuWzw",
+    "FMeEv5ZGc",
+    "sqKQEk352u"
+  ]
+}

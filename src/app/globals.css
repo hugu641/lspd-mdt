@@ -1,0 +1,192 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   THEME DEFINITIONS
+   ========================================================================== */
+
+/* 1. DEFAULT: OR POLICE & CARBONE MAT (Stealth Gold) */
+:root, [data-theme="gold"] {
+  --bg-base: #07080c;
+  --bg-surface: #0d0f15;
+  --bg-card: rgba(14, 17, 25, 0.88);
+  --bg-card-hover: rgba(22, 26, 38, 0.95);
+  --border-subtle: #1c202d;
+  --border-accent: rgba(245, 158, 11, 0.35);
+  --border-accent-strong: #f59e0b;
+  --color-primary: #f59e0b;
+  --color-primary-hover: #d97706;
+  --color-primary-text: #050507;
+  --color-primary-light: rgba(245, 158, 11, 0.12);
+  --color-primary-glow: rgba(245, 158, 11, 0.25);
+  --color-accent-badge: #fbbf24;
+  --brand-gradient: linear-gradient(135deg, #f59e0b 0%, #b45309 100%);
+}
+
+/* 2. TITANE & PLATINE (Stealth Titanium / Monochrome) */
+[data-theme="platinum"] {
+  --bg-base: #09090b;
+  --bg-surface: #121216;
+  --bg-card: rgba(20, 20, 26, 0.88);
+  --bg-card-hover: rgba(28, 28, 36, 0.95);
+  --border-subtle: #272732;
+  --border-accent: rgba(228, 228, 231, 0.35);
+  --border-accent-strong: #e4e4e7;
+  --color-primary: #e4e4e7;
+  --color-primary-hover: #ffffff;
+  --color-primary-text: #09090b;
+  --color-primary-light: rgba(228, 228, 231, 0.12);
+  --color-primary-glow: rgba(228, 228, 231, 0.2);
+  --color-accent-badge: #f4f4f5;
+  --brand-gradient: linear-gradient(135deg, #e4e4e7 0%, #71717a 100%);
+}
+
+/* 3. TACTIQUE COMMANDO (Night Ops Emerald) */
+[data-theme="emerald"] {
+  --bg-base: #050907;
+  --bg-surface: #0a130f;
+  --bg-card: rgba(12, 22, 17, 0.88);
+  --bg-card-hover: rgba(17, 33, 25, 0.95);
+  --border-subtle: #162c20;
+  --border-accent: rgba(16, 185, 129, 0.35);
+  --border-accent-strong: #10b981;
+  --color-primary: #10b981;
+  --color-primary-hover: #059669;
+  --color-primary-text: #ffffff;
+  --color-primary-light: rgba(16, 185, 129, 0.12);
+  --color-primary-glow: rgba(16, 185, 129, 0.25);
+  --color-accent-badge: #34d399;
+  --brand-gradient: linear-gradient(135deg, #10b981 0%, #047857 100%);
+}
+
+/* 4. UNITÉ D'INTERVENTION (SWAT Crimson) */
+[data-theme="crimson"] {
+  --bg-base: #090506;
+  --bg-surface: #130a0d;
+  --bg-card: rgba(23, 11, 15, 0.88);
+  --bg-card-hover: rgba(35, 15, 21, 0.95);
+  --border-subtle: #2d1419;
+  --border-accent: rgba(239, 68, 68, 0.35);
+  --border-accent-strong: #ef4444;
+  --color-primary: #ef4444;
+  --color-primary-hover: #dc2626;
+  --color-primary-text: #ffffff;
+  --color-primary-light: rgba(239, 68, 68, 0.12);
+  --color-primary-glow: rgba(239, 68, 68, 0.25);
+  --color-accent-badge: #f87171;
+  --brand-gradient: linear-gradient(135deg, #ef4444 0%, #991b1b 100%);
+}
+
+/* 5. NUIT FURTIVE (Midnight Slate) */
+[data-theme="midnight"] {
+  --bg-base: #060810;
+  --bg-surface: #0a0e1c;
+  --bg-card: rgba(13, 18, 36, 0.88);
+  --bg-card-hover: rgba(19, 27, 54, 0.95);
+  --border-subtle: #17213d;
+  --border-accent: rgba(56, 189, 248, 0.35);
+  --border-accent-strong: #38bdf8;
+  --color-primary: #38bdf8;
+  --color-primary-hover: #0284c7;
+  --color-primary-text: #04101f;
+  --color-primary-light: rgba(56, 189, 248, 0.12);
+  --color-primary-glow: rgba(56, 189, 248, 0.25);
+  --color-accent-badge: #7dd3fc;
+  --brand-gradient: linear-gradient(135deg, #38bdf8 0%, #0369a1 100%);
+}
+
+/* ==========================================================================
+   GLOBAL & RESPONSIVE STYLES
+   ========================================================================== */
+
+html {
+  -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
+}
+
+body {
+  color: #f1f5f9;
+  background-color: var(--bg-base);
+  min-height: 100vh;
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  overflow-x: hidden;
+  transition: background-color 0.25s ease-in-out, color 0.25s ease-in-out;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/* Prevent iOS Safari auto-zoom on input focus */
+@media screen and (max-width: 768px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
+}
+
+/* Hide scrollbar utility */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Custom Tactical Scrollbars for desktop */
+::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bg-surface);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-subtle);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-primary);
+}
+
+/* Tactical MDT Surfaces */
+.police-card, .mdt-card {
+  background: var(--bg-card);
+  backdrop-filter: blur(14px);
+  border: 1px solid var(--border-subtle);
+  transition: all 0.2s ease-in-out;
+}
+.police-card:hover, .mdt-card:hover {
+  border-color: var(--border-accent);
+}
+
+/* Buttons with Theme Accent */
+.btn-theme-primary {
+  background-color: var(--color-primary);
+  color: var(--color-primary-text);
+  font-weight: 700;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 4px 14px var(--color-primary-glow);
+}
+.btn-theme-primary:hover {
+  background-color: var(--color-primary-hover);
+  box-shadow: 0 6px 20px var(--color-primary-glow);
+  transform: translateY(-1px);
+}
+.btn-theme-primary:active {
+  transform: translateY(1px);
+}
+
+.text-theme-primary {
+  color: var(--color-primary);
+}
+
+.border-theme-primary {
+  border-color: var(--color-primary);
+}
+
+.bg-theme-primary-light {
+  background-color: var(--color-primary-light);
+}
+
+.brand-badge-bg {
+  background: var(--brand-gradient);
+}
