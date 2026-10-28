@@ -1426,7 +1426,7 @@ export default function RecruitmentPage() {
                   type="text"
                   value={newCandidate.discordTag}
                   onChange={(e) => setNewCandidate({ ...newCandidate, discordTag: e.target.value })}
-                  placeholder="Ex: johndoe"
+                  placeholder="Ex: Test123"
                   className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-mono"
                 />
               </div>

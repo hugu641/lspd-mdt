@@ -403,7 +403,7 @@ export default function CandidateApplicationPage() {
                     type="text"
                     value={formData.discordTag}
                     onChange={(e) => setFormData({ ...formData, discordTag: e.target.value })}
-                    placeholder="Pseudo Discord (ex: hugu641)"
+                    placeholder="Pseudo Discord (ex: Test123)"
                     className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-mono placeholder-slate-500 focus:outline-none focus:border-purple-500"
                   />
                   <input

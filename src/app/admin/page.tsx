@@ -875,7 +875,7 @@ export default function AdminPage() {
                     </label>
                     <input
                       type="text"
-                      placeholder="Ex: hugu641"
+                      placeholder="Ex: Test123"
                       value={newOfficerForm.discordTag}
                       onChange={(e) =>
                         setNewOfficerForm({ ...newOfficerForm, discordTag: e.target.value })
