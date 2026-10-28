@@ -69,6 +69,11 @@ export async function GET(req: Request) {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+    let photosData: string | null = null;
+    if (body.photos) {
+      photosData = typeof body.photos === "string" ? body.photos : JSON.stringify(body.photos);
+    }
+
     const citizen = await prisma.citizen.create({
       data: {
         firstName: body.firstName,
@@ -79,6 +84,7 @@ export async function POST(req: Request) {
         address: body.address || null,
         job: body.job || "Sans emploi",
         photoUrl: body.photoUrl || null,
+        photos: photosData,
         driverLicense: body.driverLicense || "Valide",
         weaponLicense: body.weaponLicense || "Non titulaire",
         notes: body.notes || null,

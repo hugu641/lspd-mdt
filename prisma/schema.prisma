@@ -47,6 +47,7 @@ model Citizen {
   address         String?
   job             String?  @default("Sans emploi")
   photoUrl        String?
+  photos          String?  // JSON string: list of gallery photos [{ id, url, caption, category, createdAt }]
   driverLicense   String   @default("Valide") // Valide, Suspendu, Révoqué, Non titulaire
   weaponLicense   String   @default("Non titulaire") // Valide, Suspendu, Révoqué, Non titulaire
   notes           String?
@@ -115,7 +116,7 @@ model ArrestReport {
   officerId       String
   officer         Officer  @relation(fields: [officerId], references: [id])
   citizenId       String
-  citizen         Citizen  @relation(fields: [citizenId], references: [id])
+  citizen         Citizen  @relation(fields: [citizenId], references: [id], onDelete: Cascade)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -131,7 +132,7 @@ model Warrant {
   officerId       String
   officer         Officer   @relation(fields: [officerId], references: [id])
   citizenId       String?
-  citizen         Citizen?  @relation(fields: [citizenId], references: [id])
+  citizen         Citizen?  @relation(fields: [citizenId], references: [id], onDelete: SetNull)
   vehiclePlate    String?
   createdAt       DateTime  @default(now())
   expiresAt       DateTime?
@@ -145,7 +146,7 @@ model RegisteredVehicle {
   status          String   @default("En règle") // En règle, Volé, BOLO / Recherché, Fourrière
   notes           String?
   ownerId         String?
-  owner           Citizen? @relation(fields: [ownerId], references: [id])
+  owner           Citizen? @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
@@ -158,7 +159,7 @@ model RegisteredWeapon {
   status          String   @default("En règle") // En règle, Volée, Confisquée, Recherche
   notes           String?
   ownerId         String?
-  owner           Citizen? @relation(fields: [ownerId], references: [id])
+  owner           Citizen? @relation(fields: [ownerId], references: [id], onDelete: SetNull)
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
 }
