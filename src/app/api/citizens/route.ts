@@ -4,19 +4,45 @@ import { prisma } from "../../../lib/prisma";
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const query = searchParams.get("q") || "";
+    const query = searchParams.get("q")?.trim() || "";
+    const phone = searchParams.get("phone")?.trim() || "";
+    const firstName = searchParams.get("firstName")?.trim() || "";
+    const lastName = searchParams.get("lastName")?.trim() || "";
+
+    const whereClauses: any[] = [];
+
+    if (phone) {
+      whereClauses.push({ phone: { contains: phone, mode: "insensitive" } });
+    }
+
+    if (firstName && lastName) {
+      whereClauses.push({
+        AND: [
+          { firstName: { contains: firstName, mode: "insensitive" } },
+          { lastName: { contains: lastName, mode: "insensitive" } },
+        ],
+      });
+    } else if (firstName) {
+      whereClauses.push({ firstName: { contains: firstName, mode: "insensitive" } });
+    } else if (lastName) {
+      whereClauses.push({ lastName: { contains: lastName, mode: "insensitive" } });
+    }
+
+    if (query) {
+      whereClauses.push({
+        OR: [
+          { firstName: { contains: query, mode: "insensitive" } },
+          { lastName: { contains: query, mode: "insensitive" } },
+          { phone: { contains: query, mode: "insensitive" } },
+          { job: { contains: query, mode: "insensitive" } },
+        ],
+      });
+    }
+
+    const where = whereClauses.length > 0 ? { AND: whereClauses } : undefined;
 
     const citizens = await prisma.citizen.findMany({
-      where: query
-        ? {
-            OR: [
-              { firstName: { contains: query } },
-              { lastName: { contains: query } },
-              { phone: { contains: query } },
-              { job: { contains: query } },
-            ],
-          }
-        : undefined,
+      where,
       include: {
         warrants: {
           where: { status: "Actif" },

@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect } from "react";
 import { useOfficer } from "../../context/OfficerContext";
+import Link from "next/link";
 import {
   Calculator,
   Plus,
@@ -18,6 +19,15 @@ import {
   Percent,
   Receipt,
   ListOrdered,
+  Phone,
+  ShieldAlert,
+  ExternalLink,
+  Sparkles,
+  X,
+  ChevronDown,
+  Check,
+  UserCheck,
+  Shield,
 } from "lucide-react";
 
 interface PenalItem {
@@ -39,6 +49,14 @@ export default function CalculatorPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [citizens, setCitizens] = useState<any[]>([]);
   const [selectedCitizenId, setSelectedCitizenId] = useState("");
+  const [citizenPhone, setCitizenPhone] = useState("");
+  const [citizenFirstName, setCitizenFirstName] = useState("");
+  const [citizenLastName, setCitizenLastName] = useState("");
+  const [detectedCitizen, setDetectedCitizen] = useState<any | null>(null);
+  const [matchReason, setMatchReason] = useState<string | null>(null);
+  const [showDirectoryPicker, setShowDirectoryPicker] = useState(false);
+  const [directorySearch, setDirectorySearch] = useState("");
+
   const [location, setLocation] = useState("Los Santos");
   const [notes, setNotes] = useState("");
   const [pleaDiscount, setPleaDiscount] = useState<number>(0);
@@ -65,6 +83,107 @@ export default function CalculatorPage() {
     }
     loadData();
   }, []);
+
+  // Pre-selection if URL contains ?citizenId=...
+  useEffect(() => {
+    if (typeof window !== "undefined" && citizens.length > 0) {
+      const params = new URLSearchParams(window.location.search);
+      const cId = params.get("citizenId");
+      if (cId) {
+        const found = citizens.find((c) => c.id === cId);
+        if (found) {
+          selectCitizen(found, "Dossier citoyen sélectionné");
+        }
+      }
+    }
+  }, [citizens]);
+
+  const selectCitizen = (c: any, reason = "Sélection manuelle") => {
+    setDetectedCitizen(c);
+    setSelectedCitizenId(c.id);
+    setCitizenFirstName(c.firstName || "");
+    setCitizenLastName(c.lastName || "");
+    setCitizenPhone(c.phone || "");
+    setMatchReason(reason);
+    setShowDirectoryPicker(false);
+  };
+
+  const clearCitizenSelection = () => {
+    setDetectedCitizen(null);
+    setSelectedCitizenId("");
+    setCitizenFirstName("");
+    setCitizenLastName("");
+    setCitizenPhone("");
+    setMatchReason(null);
+  };
+
+  // Real-time Auto-Detection: Phone (primary identifier in this city) or Name
+  useEffect(() => {
+    const cleanPhone = citizenPhone.trim().toLowerCase();
+    const cleanFirst = citizenFirstName.trim().toLowerCase();
+    const cleanLast = citizenLastName.trim().toLowerCase();
+
+    // 1. Check primary unique identifier: Phone number
+    if (cleanPhone && cleanPhone !== "555-" && cleanPhone.length >= 3) {
+      const match = citizens.find((c) => {
+        const p = (c.phone || "").toLowerCase().trim();
+        return (
+          p &&
+          (p === cleanPhone ||
+            p.replace(/\D/g, "") === cleanPhone.replace(/\D/g, ""))
+        );
+      });
+
+      if (match) {
+        if (detectedCitizen?.id !== match.id) {
+          setDetectedCitizen(match);
+          setSelectedCitizenId(match.id);
+          setMatchReason("Numéro de téléphone correspondant (Identifiant Unique)");
+          if (!citizenFirstName.trim()) setCitizenFirstName(match.firstName);
+          if (!citizenLastName.trim()) setCitizenLastName(match.lastName);
+        }
+        return;
+      }
+    }
+
+    // 2. Fallback check: First Name + Last Name
+    if (cleanFirst.length >= 2 && cleanLast.length >= 2) {
+      const match = citizens.find(
+        (c) =>
+          c.firstName.toLowerCase().trim() === cleanFirst &&
+          c.lastName.toLowerCase().trim() === cleanLast
+      );
+
+      if (match) {
+        if (detectedCitizen?.id !== match.id) {
+          setDetectedCitizen(match);
+          setSelectedCitizenId(match.id);
+          setMatchReason("Même Nom & Prénom détectés");
+          if (!citizenPhone.trim() && match.phone) setCitizenPhone(match.phone);
+        }
+        return;
+      }
+    }
+
+    // If fields no longer match the detected citizen, clear detection
+    if (detectedCitizen) {
+      const cPhone = (detectedCitizen.phone || "").toLowerCase().trim();
+      const cFirst = (detectedCitizen.firstName || "").toLowerCase().trim();
+      const cLast = (detectedCitizen.lastName || "").toLowerCase().trim();
+
+      const phoneOk =
+        cleanPhone &&
+        (cPhone === cleanPhone ||
+          cPhone.replace(/\D/g, "") === cleanPhone.replace(/\D/g, ""));
+      const nameOk = cleanFirst === cFirst && cleanLast === cLast;
+
+      if (!phoneOk && !nameOk) {
+        setDetectedCitizen(null);
+        setSelectedCitizenId("");
+        setMatchReason(null);
+      }
+    }
+  }, [citizenPhone, citizenFirstName, citizenLastName, citizens, detectedCitizen]);
 
   const categories = ["Toutes", "Contraventions", "Délits", "Crimes", "Crimes fédéraux"];
 
@@ -132,10 +251,15 @@ export default function CalculatorPage() {
     return matchesCat && matchesQuery;
   });
 
-  // Submit Citation
+  // Submit Citation (Procès-Verbal)
   const handleSubmitCitation = async () => {
-    if (!selectedCitizenId) {
-      alert("Veuillez sélectionner un citoyen pour dresser le procès-verbal.");
+    const hasCitizen =
+      selectedCitizenId ||
+      (citizenFirstName.trim() && citizenLastName.trim()) ||
+      citizenPhone.trim();
+
+    if (!hasCitizen) {
+      alert("Veuillez renseigner le nom, prénom ou numéro de téléphone du citoyen pour dresser le procès-verbal.");
       return;
     }
     if (Object.keys(selectedItems).length === 0) {
@@ -163,7 +287,14 @@ export default function CalculatorPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          citizenId: selectedCitizenId,
+          citizenId: selectedCitizenId || undefined,
+          citizen: !selectedCitizenId
+            ? {
+                firstName: citizenFirstName.trim() || "Inconnu",
+                lastName: citizenLastName.trim() || "Inconnu",
+                phone: citizenPhone.trim() || null,
+              }
+            : undefined,
           officerId: currentOfficer.id,
           location,
           notes: pleaDiscount > 0 ? `[Plaidoyer coupable: -${pleaDiscount}%] ${notes}` : notes,
@@ -175,17 +306,26 @@ export default function CalculatorPage() {
 
       if (res.ok) {
         const created = await res.json();
-        setSuccessMessage(`Contravention enregistrée avec succès sous le numéro ${created.citationNumber} !`);
+        setSuccessMessage(`Procès-Verbal enregistré avec succès (${created.citationNumber}) !`);
         clearBasket();
-        setSelectedCitizenId("");
+        clearCitizenSelection();
         setMobileView("catalog");
+
+        // Refresh citizens list in background
+        try {
+          const citRes = await fetch("/api/citizens");
+          const citData = await citRes.json();
+          if (Array.isArray(citData)) setCitizens(citData);
+        } catch (_) {}
+
         setTimeout(() => setSuccessMessage(null), 6000);
       } else {
-        alert("Erreur lors de l'enregistrement de la contravention.");
+        const errData = await res.json().catch(() => ({}));
+        alert(`Erreur : ${errData.error || "Impossible d'enregistrer le procès-verbal."}`);
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      alert("Erreur réseau");
+      alert(`Erreur : ${err.message}`);
     } finally {
       setSubmitting(false);
     }
@@ -381,24 +521,259 @@ export default function CalculatorPage() {
               </span>
             </div>
 
-            {/* Citizen Selection */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-slate-300 flex items-center gap-1.5">
-                <User className="w-3.5 h-3.5 text-theme-primary" />
-                <span>Citoyen / Contrevenant *</span>
-              </label>
-              <select
-                value={selectedCitizenId}
-                onChange={(e) => setSelectedCitizenId(e.target.value)}
-                className="w-full px-3 py-2.5 sm:py-2 rounded-xl bg-slate-900 border border-slate-700 text-sm sm:text-xs font-semibold text-white focus:outline-none focus:border-theme-primary"
-              >
-                <option value="">-- Sélectionner un citoyen --</option>
-                {citizens.map((c) => (
-                  <option key={c.id} value={c.id}>
-                    {c.firstName} {c.lastName} ({c.job || "Civil"})
-                  </option>
-                ))}
-              </select>
+            {/* Citizen Identity & Real-Time Auto-Detection */}
+            <div className="space-y-3 p-3.5 rounded-2xl bg-slate-900/70 border border-slate-800">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <User className="w-4 h-4 text-theme-primary" />
+                  <span className="text-xs font-bold text-white uppercase tracking-wider">
+                    Identité du Citoyen / Contrevenant *
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() => setShowDirectoryPicker(!showDirectoryPicker)}
+                  className="text-[11px] font-semibold text-theme-primary hover:underline flex items-center gap-1 transition-all"
+                >
+                  <ListOrdered className="w-3 h-3" />
+                  <span>{showDirectoryPicker ? "Masquer annuaire" : "Choisir dans l'annuaire"}</span>
+                </button>
+              </div>
+
+              {/* Directory Quick Picker Modal / Dropdown */}
+              {showDirectoryPicker && (
+                <div className="p-3 rounded-xl bg-slate-950 border border-slate-800 space-y-2 animate-fade-in">
+                  <div className="relative">
+                    <Search className="w-3.5 h-3.5 absolute left-2.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                    <input
+                      type="text"
+                      placeholder="Filtrer par nom ou téléphone..."
+                      value={directorySearch}
+                      onChange={(e) => setDirectorySearch(e.target.value)}
+                      className="w-full pl-8 pr-3 py-1.5 rounded-lg bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-theme-primary"
+                    />
+                  </div>
+                  <div className="max-h-36 overflow-y-auto space-y-1 pr-1">
+                    {citizens
+                      .filter((c) => {
+                        const q = directorySearch.toLowerCase().trim();
+                        if (!q) return true;
+                        return (
+                          `${c.firstName} ${c.lastName}`.toLowerCase().includes(q) ||
+                          (c.phone && c.phone.includes(q))
+                        );
+                      })
+                      .map((c) => (
+                        <button
+                          key={c.id}
+                          type="button"
+                          onClick={() => selectCitizen(c, "Sélectionné depuis l'annuaire")}
+                          className="w-full px-2.5 py-1.5 rounded-lg bg-slate-900/60 hover:bg-slate-800 text-left text-xs text-white flex items-center justify-between transition-all"
+                        >
+                          <span className="font-bold">
+                            {c.firstName} {c.lastName}
+                          </span>
+                          <span className="font-mono text-[10px] text-emerald-400">
+                            {c.phone || "Sans téléphone"}
+                          </span>
+                        </button>
+                      ))}
+                    {citizens.length === 0 && (
+                      <div className="text-[11px] text-slate-500 text-center py-2">
+                        Aucun citoyen enregistré pour le moment.
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
+              {/* Input Fields: Phone (Primary Identifier) + Nom & Prénom */}
+              <div className="space-y-2.5">
+                {/* Phone In-Game - Primary identifier in city */}
+                <div>
+                  <div className="flex items-center justify-between mb-1">
+                    <label className="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
+                      <Phone className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Numéro de Téléphone (In-Game)</span>
+                    </label>
+                    <span className="text-[9px] font-mono px-1.5 py-0.5 rounded bg-emerald-950/60 text-emerald-300 border border-emerald-500/30 uppercase">
+                      🔑 Identifiant Principal RP
+                    </span>
+                  </div>
+                  <input
+                    type="text"
+                    value={citizenPhone}
+                    onChange={(e) => setCitizenPhone(e.target.value)}
+                    placeholder="ex: 555-0188 (Tapez pour détecter la fiche...)"
+                    className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs font-mono font-bold text-emerald-300 placeholder-slate-600 focus:outline-none focus:border-emerald-500 transition-colors"
+                  />
+                </div>
+
+                {/* Prénom + Nom */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                      Prénom
+                    </label>
+                    <input
+                      type="text"
+                      value={citizenFirstName}
+                      onChange={(e) => setCitizenFirstName(e.target.value)}
+                      placeholder="ex: Hugo"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs font-bold text-white placeholder-slate-600 focus:outline-none focus:border-theme-primary transition-colors"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                      Nom de Famille
+                    </label>
+                    <input
+                      type="text"
+                      value={citizenLastName}
+                      onChange={(e) => setCitizenLastName(e.target.value)}
+                      placeholder="ex: Derma"
+                      className="w-full px-3 py-2 rounded-xl bg-slate-950 border border-slate-700 text-xs font-bold text-white placeholder-slate-600 focus:outline-none focus:border-theme-primary transition-colors"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* AUTOMATIC IDENTITY CARD DISPLAY WHEN CITIZEN DETECTED */}
+              {detectedCitizen && (
+                <div className="p-3.5 rounded-2xl bg-[#080b18] border-2 border-emerald-500/60 shadow-xl space-y-3 relative overflow-hidden animate-fade-in">
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/10 rounded-full blur-2xl pointer-events-none" />
+
+                  {/* Header: Citizen Found & Match reason */}
+                  <div className="flex items-start justify-between gap-2 relative z-10">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-500 p-0.5 flex-shrink-0 shadow-md">
+                        <div className="w-full h-full rounded-[10px] overflow-hidden bg-slate-950 flex items-center justify-center text-white font-black text-sm">
+                          {detectedCitizen.photoUrl ? (
+                            <img
+                              src={detectedCitizen.photoUrl}
+                              alt={detectedCitizen.firstName}
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <span>
+                              {detectedCitizen.firstName?.[0]}
+                              {detectedCitizen.lastName?.[0]}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+
+                      <div>
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-emerald-950 text-emerald-300 border border-emerald-500/50 uppercase flex items-center gap-1">
+                            <Check className="w-3 h-3 text-emerald-400" />
+                            <span>Fiche Citoyen Détectée</span>
+                          </span>
+                        </div>
+                        <h4 className="text-sm font-black text-white mt-0.5">
+                          {detectedCitizen.firstName} {detectedCitizen.lastName}
+                        </h4>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={clearCitizenSelection}
+                      title="Dissocier ce citoyen"
+                      className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  {/* Active Warrant Alert Banner if any! */}
+                  {detectedCitizen.warrants && detectedCitizen.warrants.length > 0 && (
+                    <div className="p-2.5 rounded-xl bg-red-950/80 border border-red-500/60 text-red-200 text-xs font-bold flex items-center gap-2 animate-pulse">
+                      <ShieldAlert className="w-4 h-4 text-red-400 flex-shrink-0" />
+                      <div className="leading-tight">
+                        <span className="uppercase tracking-wider font-black">
+                          🚨 Mandat d&apos;arrêt actif :
+                        </span>{" "}
+                        {detectedCitizen.warrants[0]?.reason || "Individu recherché par les forces de l'ordre !"}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Citizen Identity Data Grid */}
+                  <div className="grid grid-cols-2 gap-2 text-[11px] pt-1 border-t border-slate-800/80">
+                    <div className="p-2 rounded-lg bg-slate-950/80 border border-slate-800/60">
+                      <div className="text-[9px] text-slate-400 uppercase font-bold">Téléphone</div>
+                      <div className="font-mono font-bold text-emerald-300 truncate">
+                        {detectedCitizen.phone || "Non renseigné"}
+                      </div>
+                    </div>
+
+                    <div className="p-2 rounded-lg bg-slate-950/80 border border-slate-800/60">
+                      <div className="text-[9px] text-slate-400 uppercase font-bold">Profession</div>
+                      <div className="font-bold text-white truncate">
+                        {detectedCitizen.job || "Sans emploi"}
+                      </div>
+                    </div>
+
+                    <div className="p-2 rounded-lg bg-slate-950/80 border border-slate-800/60">
+                      <div className="text-[9px] text-slate-400 uppercase font-bold">Permis de conduire</div>
+                      <div className="font-bold">
+                        <span
+                          className={
+                            detectedCitizen.driverLicense === "Valide"
+                              ? "text-emerald-400"
+                              : "text-red-400"
+                          }
+                        >
+                          {detectedCitizen.driverLicense || "Valide"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="p-2 rounded-lg bg-slate-950/80 border border-slate-800/60">
+                      <div className="text-[9px] text-slate-400 uppercase font-bold">Antécédents</div>
+                      <div className="font-mono font-bold text-amber-300">
+                        {detectedCitizen._count?.citations ?? 0} PV au casier
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Link to Full Citizen Profile */}
+                  <div className="flex items-center justify-between pt-1">
+                    <span className="text-[10px] text-slate-400 italic">
+                      {matchReason}
+                    </span>
+                    <Link
+                      href={`/citizens/${detectedCitizen.id}`}
+                      target="_blank"
+                      className="text-[11px] font-bold text-theme-primary hover:underline inline-flex items-center gap-1"
+                    >
+                      <span>Voir le dossier complet</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </Link>
+                  </div>
+                </div>
+              )}
+
+              {/* NOTICE WHEN NO CITIZEN MATCHED YET BUT FIELDS TYPED */}
+              {!detectedCitizen && (citizenPhone || citizenFirstName || citizenLastName) && (
+                <div className="p-3 rounded-xl bg-purple-950/30 border border-purple-500/30 space-y-1">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-purple-300">
+                    <Sparkles className="w-3.5 h-3.5 text-purple-400" />
+                    <span>Nouveau citoyen non répertorié</span>
+                  </div>
+                  <p className="text-[10px] text-slate-300 leading-relaxed">
+                    Aucune fiche existante trouvée. Ce citoyen sera automatiquement créé dans le Fichier Central avec le numéro{" "}
+                    <strong className="text-emerald-300 font-mono">{citizenPhone.trim() || "N/A"}</strong> et le nom{" "}
+                    <strong className="text-white">
+                      {citizenFirstName.trim() || "Prénom"} {citizenLastName.trim() || "Nom"}
+                    </strong>{" "}
+                    dès que vous validerez ce procès-verbal.
+                  </p>
+                </div>
+              )}
             </div>
 
             {/* Location */}
