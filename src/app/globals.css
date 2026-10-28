@@ -6,8 +6,26 @@
    THEME DEFINITIONS
    ========================================================================== */
 
-/* 1. DEFAULT: OR POLICE & CARBONE MAT (Stealth Gold) */
-:root, [data-theme="gold"] {
+/* 0. DEFAULT: CYBER VIOLET & ONYX (Inspiré interface EMS / Police) */
+:root, [data-theme="violet"] {
+  --bg-base: #07080f;
+  --bg-surface: #0c0d16;
+  --bg-card: rgba(14, 16, 26, 0.92);
+  --bg-card-hover: rgba(22, 25, 40, 0.98);
+  --border-subtle: #181b2e;
+  --border-accent: rgba(139, 92, 246, 0.35);
+  --border-accent-strong: #8b5cf6;
+  --color-primary: #8b5cf6;
+  --color-primary-hover: #7c3aed;
+  --color-primary-text: #ffffff;
+  --color-primary-light: rgba(139, 92, 246, 0.15);
+  --color-primary-glow: rgba(139, 92, 246, 0.28);
+  --color-accent-badge: #a78bfa;
+  --brand-gradient: linear-gradient(135deg, #a855f7 0%, #7c3aed 100%);
+}
+
+/* 1. OR POLICE & CARBONE MAT (Stealth Gold) */
+[data-theme="gold"] {
   --bg-base: #07080c;
   --bg-surface: #0d0f15;
   --bg-card: rgba(14, 17, 25, 0.88);

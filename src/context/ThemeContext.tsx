@@ -2,7 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 
-export type ThemeName = "gold" | "platinum" | "emerald" | "crimson" | "midnight";
+export type ThemeName = "violet" | "gold" | "platinum" | "emerald" | "crimson" | "midnight";
 
 export interface ThemeConfig {
   id: ThemeName;
@@ -14,6 +14,14 @@ export interface ThemeConfig {
 }
 
 export const AVAILABLE_THEMES: ThemeConfig[] = [
+  {
+    id: "violet",
+    name: "Cyber Violet & Onyx",
+    icon: "🟣",
+    badge: "Neo Cyber",
+    primaryColor: "#8b5cf6",
+    desc: "Thème sombre inspiré des interfaces tactiques modernes (EMS/Police)",
+  },
   {
     id: "gold",
     name: "Or Police & Carbone",
@@ -65,7 +73,7 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<ThemeName>("gold");
+  const [theme, setThemeState] = useState<ThemeName>("violet");
 
   useEffect(() => {
     const saved = localStorage.getItem("lspd_mdt_theme") as ThemeName;
