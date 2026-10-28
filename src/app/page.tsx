@@ -243,6 +243,16 @@ export default function DashboardPage() {
                   </span>
                 )}
               </div>
+
+              {/* In-Game Phone & Callsign */}
+              <div className="flex items-center gap-2 text-xs text-slate-300 pt-0.5">
+                <span className="flex items-center gap-1 font-mono text-emerald-300 font-bold bg-emerald-950/50 px-2 py-0.5 rounded border border-emerald-500/30">
+                  <Phone className="w-3 h-3 text-emerald-400" />
+                  <span>{currentOfficer?.phone || "Tél non renseigné"}</span>
+                </span>
+                <span className="text-slate-600">•</span>
+                <span className="font-mono text-purple-300 text-xs font-semibold">{currentOfficer?.callsign}</span>
+              </div>
             </div>
           </div>
 

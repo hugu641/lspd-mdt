@@ -15,6 +15,12 @@ export async function PATCH(
     if (body.rank !== undefined) updateData.rank = body.rank;
     if (body.callsign !== undefined) updateData.callsign = body.callsign;
     if (body.isInstructor !== undefined) updateData.isInstructor = body.isInstructor;
+    if (body.phone !== undefined) {
+      updateData.phone = body.phone ? body.phone.trim() : null;
+    }
+    if (body.avatarUrl !== undefined) {
+      updateData.avatarUrl = body.avatarUrl ? body.avatarUrl.trim() : null;
+    }
     if (body.discordId !== undefined) {
       updateData.discordId = body.discordId ? body.discordId.trim().replace(/[<@!>]/g, "") : null;
     }
