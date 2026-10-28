@@ -85,7 +85,7 @@ export default function AdminPage() {
     autoSyncRoles: true,
     sendWelcomeDm: true,
     authRequired: true,
-    allowedRoles: "LSPD,Police,Rookie,Officier I,Officier II,Officier III,SLO,Sergent,Sergent-Chef,Lieutenant,Capitaine,Commandant,Deputy-Chief,Assistant-Chief,Chief of Police",
+    allowedRoles: "*,LSPD,Police,Fondateur,Admin,Direction,Staff,Rookie,Officier I,Officier II,Officier III,SLO,Sergent,Sergent-Chef,Lieutenant,Capitaine,Commandant,Deputy-Chief,Assistant-Chief,Chief of Police",
     isConfigured: false,
     isConfiguredOAuth: false,
     hasToken: false,

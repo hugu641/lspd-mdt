@@ -32,8 +32,16 @@ export const LSPD_RANK_NAMES = [
 ];
 
 const DEFAULT_ALLOWED_ROLES = [
+  "*",
   "LSPD",
   "Police",
+  "Admin",
+  "Administrateur",
+  "Fondateur",
+  "Owner",
+  "Staff",
+  "Direction",
+  "Développeur",
   "Chief of Police",
   "Assistant-Chief",
   "Deputy-Chief",
@@ -294,22 +302,38 @@ export async function checkUserLSPDAccess(discordUser: any, userAccessToken?: st
       .filter((r) => memberRoleIds.includes(r.id))
       .map((r) => r.name);
 
+    // Check if member has high-level Discord administrator/founder/star role
+    const isAdminOrFounder = memberRolesNames.some((r) => {
+      const lower = r.toLowerCase().trim();
+      return (
+        lower === "*" ||
+        lower.includes("fondateur") ||
+        lower.includes("owner") ||
+        lower.includes("admin") ||
+        lower.includes("direction") ||
+        lower.includes("staff") ||
+        lower.includes("développeur") ||
+        lower.includes("dev")
+      );
+    });
+
     // Check if member has at least one allowed role
-    const matchedRole = memberRolesNames.find((roleName) =>
-      allowedList.includes(roleName.toLowerCase())
-    );
+    const matchedRole =
+      memberRolesNames.find((roleName) =>
+        allowedList.includes(roleName.toLowerCase())
+      ) || (isAdminOrFounder ? "Fondateur / Admin Discord" : null);
 
     if (!matchedRole) {
       return {
         allowed: false,
         reason: `Accès refusé : Aucun rôle LSPD valide détecté sur votre profil Discord. Vos rôles actuels : [${
           memberRolesNames.length > 0 ? memberRolesNames.join(", ") : "Aucun rôle"
-        }]. Contactez un instructeur ou l'État-Major pour obtenir votre grade.`,
+        }]. Attribuez-vous le rôle LSPD ou votre grade sur votre serveur Discord.`,
       };
     }
 
-    // Determine rank from matched role or default to Rookie
-    let detectedRank = "Rookie";
+    // Determine rank: if admin/founder default to Chief of Police, else Rookie
+    let detectedRank = isAdminOrFounder ? "Chief of Police" : "Rookie";
     for (const rank of LSPD_RANK_NAMES) {
       if (memberRolesNames.some((r) => r.toLowerCase().trim() === rank.toLowerCase().trim())) {
         detectedRank = rank;
@@ -317,12 +341,40 @@ export async function checkUserLSPDAccess(discordUser: any, userAccessToken?: st
       }
     }
 
-    // Auto-create / provision Officer account for this verified Discord member!
-    const badgeNum = Math.floor(10 + Math.random() * 89).toString();
     const displayName = member.nick || discordUser.global_name || discordUser.username;
     const avatarUrl = discordUser.avatar
       ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
       : null;
+
+    // If Chief of Police exists in DB without a linked discordId, link directly to this Founder/Admin!
+    if (isAdminOrFounder) {
+      const unlinkedChief = await prisma.officer.findFirst({
+        where: { rank: "Chief of Police", discordId: null },
+        include: { badges: { include: { course: true } } },
+      });
+      if (unlinkedChief) {
+        const updatedOfficer = await prisma.officer.update({
+          where: { id: unlinkedChief.id },
+          data: {
+            discordId: discordUser.id,
+            discordTag: discordUser.username,
+            name: displayName || unlinkedChief.name,
+            avatarUrl: avatarUrl || unlinkedChief.avatarUrl,
+            isAdmin: true,
+          },
+          include: { badges: { include: { course: true } } },
+        });
+        return {
+          allowed: true,
+          officer: updatedOfficer,
+          matchedRole: "Fondateur / Chief of Police",
+          reason: `Accès Haut Commandement accordé (Badge #${updatedOfficer.badgeNumber} - ${updatedOfficer.name}).`,
+        };
+      }
+    }
+
+    // Auto-create / provision Officer account for this verified Discord member!
+    const badgeNum = Math.floor(10 + Math.random() * 89).toString();
 
     const newOfficer = await prisma.officer.create({
       data: {
@@ -337,7 +389,7 @@ export async function checkUserLSPDAccess(discordUser: any, userAccessToken?: st
         status: "10-8",
         unitType: "Adam",
         isInstructor: memberRolesNames.some((r) => r.toLowerCase().includes("instructeur")),
-        isAdmin: detectedRank === "Chief of Police" || detectedRank === "Capitaine",
+        isAdmin: detectedRank === "Chief of Police" || detectedRank === "Capitaine" || isAdminOrFounder,
       },
       include: {
         badges: { include: { course: true } },
