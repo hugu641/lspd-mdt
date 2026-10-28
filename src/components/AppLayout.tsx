@@ -48,35 +48,60 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [savingOnboarding, setSavingOnboarding] = useState(false);
   const [onboardingFeedback, setOnboardingFeedback] = useState<string | null>(null);
 
-  // Check if current officer lacks formatted matricule or phone number on login
+  // Check if current officer lacks formatted matricule (for LSPD) or phone number on login
   React.useEffect(() => {
     if (currentOfficer) {
-      const hasStandardName = /^\d{1,4}\s*\|\s*.+/.test(currentOfficer.name);
+      const isMarshal =
+        currentOfficer.department === "US Marshal" ||
+        currentOfficer.rank.toLowerCase().includes("marshal") ||
+        currentOfficer.rank.toLowerCase().includes("marshall");
+
       const hasPhone =
         currentOfficer.phone &&
         currentOfficer.phone.trim() !== "" &&
         currentOfficer.phone !== "555-";
 
-      if (!hasStandardName || !hasPhone) {
-        const dismissed =
-          typeof window !== "undefined"
-            ? sessionStorage.getItem(`lspd_onboarding_dismissed_${currentOfficer.id}`)
-            : null;
-        if (!dismissed) {
-          const parts = currentOfficer.name.split("|");
-          if (parts.length === 2) {
-            setMatriculeInput(parts[0].trim());
-            const nameParts = parts[1].trim().split(" ");
+      if (isMarshal) {
+        // US Marshal: DO NOT ask for matricule! Only ask for in-game phone if missing
+        if (!hasPhone) {
+          const dismissed =
+            typeof window !== "undefined"
+              ? sessionStorage.getItem(`lspd_onboarding_dismissed_${currentOfficer.id}`)
+              : null;
+          if (!dismissed) {
+            const cleanName = currentOfficer.name.replace(/^\d{1,4}\s*\|\s*/, "").trim();
+            const nameParts = cleanName.split(" ");
+            setMatriculeInput("");
             setFirstNameInput(nameParts[0] || "");
             setLastNameInput(nameParts.slice(1).join(" ") || "");
-          } else {
-            setMatriculeInput(currentOfficer.badgeNumber || "");
-            const nameParts = currentOfficer.name.trim().split(" ");
-            setFirstNameInput(nameParts[0] || "");
-            setLastNameInput(nameParts.slice(1).join(" ") || "");
+            setPhoneInput(currentOfficer.phone || "");
+            setShowPhoneModal(true);
           }
-          setPhoneInput(currentOfficer.phone || "");
-          setShowPhoneModal(true);
+        }
+      } else {
+        // LSPD: requires standard format "04 | Hugo Derma" and in-game phone
+        const hasStandardName = /^\d{1,4}\s*\|\s*.+/.test(currentOfficer.name);
+        if (!hasStandardName || !hasPhone) {
+          const dismissed =
+            typeof window !== "undefined"
+              ? sessionStorage.getItem(`lspd_onboarding_dismissed_${currentOfficer.id}`)
+              : null;
+          if (!dismissed) {
+            const parts = currentOfficer.name.split("|");
+            if (parts.length === 2) {
+              setMatriculeInput(parts[0].trim());
+              const nameParts = parts[1].trim().split(" ");
+              setFirstNameInput(nameParts[0] || "");
+              setLastNameInput(nameParts.slice(1).join(" ") || "");
+            } else {
+              setMatriculeInput(currentOfficer.badgeNumber || "");
+              const nameParts = currentOfficer.name.trim().split(" ");
+              setFirstNameInput(nameParts[0] || "");
+              setLastNameInput(nameParts.slice(1).join(" ") || "");
+            }
+            setPhoneInput(currentOfficer.phone || "");
+            setShowPhoneModal(true);
+          }
         }
       }
     }
@@ -85,30 +110,42 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const handleSaveOnboarding = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentOfficer) return;
+
+    const isMarshal =
+      currentOfficer.department === "US Marshal" ||
+      currentOfficer.rank.toLowerCase().includes("marshal") ||
+      currentOfficer.rank.toLowerCase().includes("marshall");
+
     const cleanBadge = matriculeInput.trim();
     const cleanFirst = firstNameInput.trim();
     const cleanLast = lastNameInput.trim();
     const cleanPhone = phoneInput.trim();
 
-    if (!cleanBadge || !cleanFirst) return;
+    if (!isMarshal && (!cleanBadge || !cleanFirst)) return;
+    if (isMarshal && !cleanPhone) return;
 
     setSavingOnboarding(true);
     setOnboardingFeedback(null);
 
-    const formattedName = cleanLast
-      ? `${cleanBadge} | ${cleanFirst} ${cleanLast}`
-      : `${cleanBadge} | ${cleanFirst}`;
+    const formattedName = isMarshal
+      ? (cleanLast ? `${cleanFirst} ${cleanLast}` : cleanFirst || currentOfficer.name)
+      : (cleanLast ? `${cleanBadge} | ${cleanFirst} ${cleanLast}` : `${cleanBadge} | ${cleanFirst}`);
+
+    const patchPayload: Record<string, any> = {
+      name: formattedName,
+      phone: cleanPhone || null,
+    };
+
+    if (!isMarshal) {
+      patchPayload.badgeNumber = cleanBadge;
+      patchPayload.callsign = `${currentOfficer.rank.toUpperCase()}-${cleanBadge}`;
+    }
 
     try {
       const res = await fetch(`/api/officers/${currentOfficer.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formattedName,
-          badgeNumber: cleanBadge,
-          callsign: `${currentOfficer.rank.toUpperCase()}-${cleanBadge}`,
-          phone: cleanPhone || null,
-        }),
+        body: JSON.stringify(patchPayload),
       });
 
       const data = await res.json();
@@ -116,9 +153,13 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         setCurrentOfficer({
           ...currentOfficer,
           name: formattedName,
-          badgeNumber: cleanBadge,
-          callsign: `${currentOfficer.rank.toUpperCase()}-${cleanBadge}`,
           phone: cleanPhone || null,
+          ...(isMarshal
+            ? {}
+            : {
+                badgeNumber: cleanBadge,
+                callsign: `${currentOfficer.rank.toUpperCase()}-${cleanBadge}`,
+              }),
         });
 
         let successMsg = `Profil mis à jour : ${formattedName}`;
@@ -397,134 +438,203 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         </Link>
 
         {/* First Connection / Onboarding Modal (Matricule, Nom, Prénom, Téléphone) */}
-        {showPhoneModal && currentOfficer && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
-            <div className="w-full max-w-lg rounded-3xl bg-[#0c0e1e] border border-purple-500/40 shadow-2xl p-6 sm:p-7 space-y-5 text-left relative overflow-hidden">
-              {/* Background gradient decorative glow */}
-              <div className="absolute -top-24 -right-24 w-48 h-48 bg-purple-600/20 rounded-full blur-3xl pointer-events-none" />
+        {showPhoneModal && currentOfficer && (() => {
+          const isMarshalUser =
+            currentOfficer.department === "US Marshal" ||
+            currentOfficer.rank.toLowerCase().includes("marshal") ||
+            currentOfficer.rank.toLowerCase().includes("marshall");
 
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-700 via-indigo-600 to-pink-600 flex items-center justify-center text-white flex-shrink-0 shadow-lg shadow-purple-900/40">
-                  <Shield className="w-6 h-6 animate-pulse" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-950/80 text-purple-300 border border-purple-500/40 font-mono">
-                      PREMIÈRE CONNEXION • ENRÔLEMENT
-                    </span>
+          return (
+            <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-fade-in">
+              <div className="w-full max-w-lg rounded-3xl bg-[#0c0e1e] border border-purple-500/40 shadow-2xl p-6 sm:p-7 space-y-5 text-left relative overflow-hidden">
+                {/* Background gradient decorative glow */}
+                <div className="absolute -top-24 -right-24 w-48 h-48 bg-purple-600/20 rounded-full blur-3xl pointer-events-none" />
+
+                <div className="flex items-start gap-4">
+                  <div className="w-12 h-12 rounded-2xl bg-gradient-to-tr from-purple-700 via-indigo-600 to-pink-600 flex items-center justify-center text-white flex-shrink-0 shadow-lg shadow-purple-900/40">
+                    <Shield className="w-6 h-6 animate-pulse" />
                   </div>
-                  <h3 className="text-lg font-black text-white mt-1">
-                    Fiche Matricule & Identité In-Game
-                  </h3>
-                  <p className="text-xs text-slate-300 mt-1 leading-relaxed">
-                    Configurez votre identité en ville. Votre matricule et votre nom seront automatiquement synchronisés sur le <strong>MDT</strong> et sur votre pseudo <strong>Discord</strong>.
-                  </p>
-                </div>
-              </div>
-
-              <form onSubmit={handleSaveOnboarding} className="space-y-4 pt-1">
-                {/* Row 1: Matricule + Téléphone */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">
-                      Matricule (ex: 04, 12, 88)
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="ex: 04"
-                      value={matriculeInput}
-                      onChange={(e) => setMatriculeInput(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-[#070814] border border-[#21274d] text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-mono font-bold"
-                    />
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-950/80 text-purple-300 border border-purple-500/40 font-mono">
+                        {isMarshalUser ? "US MARSHAL SERVICE • COORDONNÉES" : "PREMIÈRE CONNEXION • ENRÔLEMENT"}
+                      </span>
+                    </div>
+                    <h3 className="text-lg font-black text-white mt-1">
+                      {isMarshalUser ? "Numéro de Téléphone In-Game" : "Fiche Matricule & Identité In-Game"}
+                    </h3>
+                    <p className="text-xs text-slate-300 mt-1 leading-relaxed">
+                      {isMarshalUser
+                        ? "Agent fédéral du corps des US Marshals. Renseignez votre numéro de téléphone en ville pour figurer dans l'annuaire des effectifs."
+                        : "Configurez votre identité en ville. Votre matricule et votre nom seront automatiquement synchronisés sur le MDT et sur votre pseudo Discord."}
+                    </p>
                   </div>
+                </div>
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">
-                      Téléphone en ville (In-Game)
-                    </label>
-                    <div className="relative">
-                      <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-purple-400" />
-                      <input
-                        type="text"
-                        required
-                        placeholder="ex: 555-0188"
-                        value={phoneInput}
-                        onChange={(e) => setPhoneInput(e.target.value)}
-                        className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#070814] border border-[#21274d] text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-mono font-bold"
-                      />
+                <form onSubmit={handleSaveOnboarding} className="space-y-4 pt-1">
+                  {isMarshalUser ? (
+                    /* US Marshal Form: NO MATRICULE! */
+                    <div className="space-y-3">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-300 mb-1">
+                          Téléphone en ville (In-Game)
+                        </label>
+                        <div className="relative">
+                          <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-purple-400" />
+                          <input
+                            type="text"
+                            required
+                            placeholder="ex: 555-0188"
+                            value={phoneInput}
+                            onChange={(e) => setPhoneInput(e.target.value)}
+                            className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#070814] border border-[#21274d] text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-mono font-bold"
+                          />
+                        </div>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-300 mb-1">
+                            Prénom
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="ex: John"
+                            value={firstNameInput}
+                            onChange={(e) => setFirstNameInput(e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl bg-[#070814] border border-[#21274d] text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-bold"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-300 mb-1">
+                            Nom de Famille
+                          </label>
+                          <input
+                            type="text"
+                            placeholder="ex: Doe"
+                            value={lastNameInput}
+                            onChange={(e) => setLastNameInput(e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl bg-[#070814] border border-[#21274d] text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-bold"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  ) : (
+                    /* Standard LSPD Form */
+                    <>
+                      {/* Row 1: Matricule + Téléphone */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-300 mb-1">
+                            Matricule (ex: 04, 12, 88)
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="ex: 04"
+                            value={matriculeInput}
+                            onChange={(e) => setMatriculeInput(e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl bg-[#070814] border border-[#21274d] text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-mono font-bold"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-300 mb-1">
+                            Téléphone en ville (In-Game)
+                          </label>
+                          <div className="relative">
+                            <Phone className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-purple-400" />
+                            <input
+                              type="text"
+                              required
+                              placeholder="ex: 555-0188"
+                              value={phoneInput}
+                              onChange={(e) => setPhoneInput(e.target.value)}
+                              className="w-full pl-9 pr-3 py-2 rounded-xl bg-[#070814] border border-[#21274d] text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-mono font-bold"
+                            />
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Row 2: Prénom + Nom */}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        <div>
+                          <label className="block text-xs font-bold text-slate-300 mb-1">
+                            Prénom RP
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="ex: Hugo"
+                            value={firstNameInput}
+                            onChange={(e) => setFirstNameInput(e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl bg-[#070814] border border-[#21274d] text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-bold"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-xs font-bold text-slate-300 mb-1">
+                            Nom de Famille RP
+                          </label>
+                          <input
+                            type="text"
+                            required
+                            placeholder="ex: Derma"
+                            value={lastNameInput}
+                            onChange={(e) => setLastNameInput(e.target.value)}
+                            className="w-full px-3 py-2 rounded-xl bg-[#070814] border border-[#21274d] text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-bold"
+                          />
+                        </div>
+                      </div>
+                    </>
+                  )}
+
+                  {/* Live Nickname Preview */}
+                  <div className="p-3 rounded-2xl bg-[#070814] border border-[#1e2344] flex items-center justify-between">
+                    <div className="text-[11px] text-slate-400 font-semibold">
+                      {isMarshalUser ? "Identité affichée :" : "Aperçu sur le site & Discord :"}
+                    </div>
+                    <div className="font-mono text-xs font-black text-purple-300 px-2.5 py-1 rounded-lg bg-purple-950/80 border border-purple-500/40">
+                      {isMarshalUser
+                        ? `${firstNameInput.trim() || "Prénom"} ${lastNameInput.trim() || "Nom"}`
+                        : `${matriculeInput.trim() || "00"} | ${firstNameInput.trim() || "Prénom"} ${lastNameInput.trim() || "Nom"}`}
                     </div>
                   </div>
-                </div>
 
-                {/* Row 2: Prénom + Nom */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">
-                      Prénom RP
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="ex: Hugo"
-                      value={firstNameInput}
-                      onChange={(e) => setFirstNameInput(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-[#070814] border border-[#21274d] text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-bold"
-                    />
-                  </div>
+                  {onboardingFeedback && (
+                    <div className="text-xs text-rose-400 font-bold p-2.5 rounded-xl bg-rose-950/40 border border-rose-500/40">
+                      {onboardingFeedback}
+                    </div>
+                  )}
 
-                  <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-1">
-                      Nom de Famille RP
-                    </label>
-                    <input
-                      type="text"
-                      required
-                      placeholder="ex: Derma"
-                      value={lastNameInput}
-                      onChange={(e) => setLastNameInput(e.target.value)}
-                      className="w-full px-3 py-2 rounded-xl bg-[#070814] border border-[#21274d] text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-bold"
-                    />
+                  <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#181c3b]">
+                    <button
+                      type="button"
+                      onClick={handleDismissPhone}
+                      className="px-4 py-2 rounded-xl bg-[#141730] hover:bg-[#1f2348] text-slate-400 hover:text-white text-xs font-bold transition-all"
+                    >
+                      Rappeler plus tard
+                    </button>
+                    <button
+                      type="submit"
+                      disabled={
+                        savingOnboarding ||
+                        (isMarshalUser
+                          ? !phoneInput.trim()
+                          : !matriculeInput.trim() || !firstNameInput.trim())
+                      }
+                      className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-purple-900/40 transition-all disabled:opacity-50 flex items-center gap-2"
+                    >
+                      <Check className="w-4 h-4" />
+                      <span>{savingOnboarding ? "Enregistrement..." : "Valider & Synchroniser Discord"}</span>
+                    </button>
                   </div>
-                </div>
-
-                {/* Live Nickname Preview */}
-                <div className="p-3 rounded-2xl bg-[#070814] border border-[#1e2344] flex items-center justify-between">
-                  <div className="text-[11px] text-slate-400 font-semibold">
-                    Aperçu sur le site & Discord :
-                  </div>
-                  <div className="font-mono text-xs font-black text-purple-300 px-2.5 py-1 rounded-lg bg-purple-950/80 border border-purple-500/40">
-                    {matriculeInput.trim() || "00"} | {firstNameInput.trim() || "Prénom"} {lastNameInput.trim() || "Nom"}
-                  </div>
-                </div>
-
-                {onboardingFeedback && (
-                  <div className="text-xs text-rose-400 font-bold p-2.5 rounded-xl bg-rose-950/40 border border-rose-500/40">
-                    {onboardingFeedback}
-                  </div>
-                )}
-
-                <div className="flex items-center justify-end gap-2.5 pt-2 border-t border-[#181c3b]">
-                  <button
-                    type="button"
-                    onClick={handleDismissPhone}
-                    className="px-4 py-2 rounded-xl bg-[#141730] hover:bg-[#1f2348] text-slate-400 hover:text-white text-xs font-bold transition-all"
-                  >
-                    Rappeler plus tard
-                  </button>
-                  <button
-                    type="submit"
-                    disabled={savingOnboarding || !matriculeInput.trim() || !firstNameInput.trim()}
-                    className="px-5 py-2.5 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white text-xs font-bold shadow-lg shadow-purple-900/40 transition-all disabled:opacity-50 flex items-center gap-2"
-                  >
-                    <Check className="w-4 h-4" />
-                    <span>{savingOnboarding ? "Enregistrement..." : "Valider & Synchroniser Discord"}</span>
-                  </button>
-                </div>
-              </form>
+                </form>
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
       </div>
     </div>
   );

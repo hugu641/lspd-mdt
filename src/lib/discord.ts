@@ -367,11 +367,13 @@ export async function checkUserLSPDAccess(discordUser: any, userAccessToken?: st
       updatePayload.avatarUrl = `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`;
     }
 
-    // Ensure badgeNumber is in sync with name if formatted as "04 | Hugo Derma"
-    const nameBadgeMatch = existingOfficer.name.match(/^(\d{1,4})\s*\|/);
-    if (nameBadgeMatch && nameBadgeMatch[1] && existingOfficer.badgeNumber !== nameBadgeMatch[1]) {
-      updatePayload.badgeNumber = nameBadgeMatch[1];
-      updatePayload.callsign = `${(updatePayload.rank || existingOfficer.rank || "").toUpperCase()}-${nameBadgeMatch[1]}`;
+    // Ensure badgeNumber is in sync with name if formatted as "04 | Hugo Derma" (LSPD only)
+    if (!isMarshal) {
+      const nameBadgeMatch = existingOfficer.name.match(/^(\d{1,4})\s*\|/);
+      if (nameBadgeMatch && nameBadgeMatch[1] && existingOfficer.badgeNumber !== nameBadgeMatch[1]) {
+        updatePayload.badgeNumber = nameBadgeMatch[1];
+        updatePayload.callsign = `${(updatePayload.rank || existingOfficer.rank || "").toUpperCase()}-${nameBadgeMatch[1]}`;
+      }
     }
 
     if (Object.keys(updatePayload).length > 0) {
@@ -432,16 +434,20 @@ export async function checkUserLSPDAccess(discordUser: any, userAccessToken?: st
 
   // Final Rank: Priority to detected role rank (e.g. Rookie), fallback to Chief if admin, or Rookie
   const finalRank = detectedRank || (isAdminOrFounder ? "Chief of Police" : "Rookie");
-  const displayName = member.nick || discordUser.global_name || discordUser.username;
-  const extractedBadge = displayName.match(/^(\d{1,4})\s*\|/);
-  const badgeNum = extractedBadge ? extractedBadge[1] : Math.floor(10 + Math.random() * 89).toString();
-  const avatarUrl = discordUser.avatar
-    ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
-    : null;
-
   const isNewOfficerMarshal =
     finalRank.toLowerCase().includes("marshal") ||
     memberRolesNames.some((r) => r.toLowerCase().includes("marshal") || r.toLowerCase().includes("marshall"));
+
+  const displayName = member.nick || discordUser.global_name || discordUser.username;
+  const extractedBadge = !isNewOfficerMarshal ? displayName.match(/^(\d{1,4})\s*\|/) : null;
+  const badgeNum = isNewOfficerMarshal
+    ? `USMS-${discordUser.id.slice(-4)}`
+    : extractedBadge
+    ? extractedBadge[1]
+    : Math.floor(10 + Math.random() * 89).toString();
+  const avatarUrl = discordUser.avatar
+    ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
+    : null;
 
   const newOfficer = await prisma.officer.create({
     data: {

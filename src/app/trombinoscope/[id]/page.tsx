@@ -191,24 +191,35 @@ export default function OfficerProfilePage() {
     if (!officer) return;
     setSavingProfile(true);
 
+    const isMarshalProfile =
+      officer.department === "US Marshal" ||
+      officer.rank.toLowerCase().includes("marshal") ||
+      officer.rank.toLowerCase().includes("marshall");
+
     const cleanBadge = matriculeInput.trim();
     const cleanFirst = firstNameInput.trim();
     const cleanLast = lastNameInput.trim();
-    const formattedName = cleanLast
-      ? `${cleanBadge} | ${cleanFirst} ${cleanLast}`
-      : `${cleanBadge} | ${cleanFirst}`;
+
+    const formattedName = isMarshalProfile
+      ? (cleanLast ? `${cleanFirst} ${cleanLast}` : cleanFirst || officer.name)
+      : (cleanLast ? `${cleanBadge} | ${cleanFirst} ${cleanLast}` : `${cleanBadge} | ${cleanFirst}`);
+
+    const patchPayload: Record<string, any> = {
+      name: formattedName,
+      phone: phoneInput.trim() || null,
+      avatarUrl: avatarUrlInput.trim() || null,
+    };
+
+    if (!isMarshalProfile) {
+      patchPayload.badgeNumber = cleanBadge;
+      patchPayload.callsign = `${officer.rank.toUpperCase()}-${cleanBadge}`;
+    }
 
     try {
       const res = await fetch(`/api/officers/${officer.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: formattedName,
-          badgeNumber: cleanBadge,
-          callsign: `${officer.rank.toUpperCase()}-${cleanBadge}`,
-          phone: phoneInput.trim() || null,
-          avatarUrl: avatarUrlInput.trim() || null,
-        }),
+        body: JSON.stringify(patchPayload),
       });
 
       const data = await res.json();
@@ -216,10 +227,14 @@ export default function OfficerProfilePage() {
         setOfficer((prev: any) => ({
           ...prev,
           name: formattedName,
-          badgeNumber: cleanBadge,
-          callsign: `${officer.rank.toUpperCase()}-${cleanBadge}`,
           phone: phoneInput.trim() || null,
           avatarUrl: avatarUrlInput.trim() || null,
+          ...(isMarshalProfile
+            ? {}
+            : {
+                badgeNumber: cleanBadge,
+                callsign: `${officer.rank.toUpperCase()}-${cleanBadge}`,
+              }),
         }));
         await refreshOfficers();
 
@@ -365,9 +380,15 @@ export default function OfficerProfilePage() {
                 {isMarshal ? "US Marshal Service" : "Central Police LSPD"}
               </span>
 
-              <span className="font-mono text-xs font-black px-2.5 py-0.5 rounded-full bg-purple-950/80 text-purple-300 border border-purple-500/40">
-                Matricule #{officer.badgeNumber}
-              </span>
+              {isMarshal ? (
+                <span className="font-mono text-xs font-black px-2.5 py-0.5 rounded-full bg-indigo-950/80 text-indigo-300 border border-indigo-500/40">
+                  Corps Fédéral
+                </span>
+              ) : (
+                <span className="font-mono text-xs font-black px-2.5 py-0.5 rounded-full bg-purple-950/80 text-purple-300 border border-purple-500/40">
+                  Matricule #{officer.badgeNumber}
+                </span>
+              )}
 
               {officer.isInstructor && (
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1">
@@ -730,20 +751,22 @@ export default function OfficerProfilePage() {
             </div>
 
             <form onSubmit={handleSaveProfile} className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-300 mb-1">
-                    Matricule (Badge)
-                  </label>
-                  <input
-                    type="text"
-                    required
-                    placeholder="ex: 04"
-                    value={matriculeInput}
-                    onChange={(e) => setMatriculeInput(e.target.value)}
-                    className="w-full px-3 py-2 rounded-xl bg-[#070814] border border-[#21274d] text-xs text-white font-mono font-bold focus:outline-none focus:border-purple-500"
-                  />
-                </div>
+              <div className={`grid ${isMarshal ? "grid-cols-1" : "grid-cols-2"} gap-3`}>
+                {!isMarshal && (
+                  <div>
+                    <label className="block text-xs font-bold text-slate-300 mb-1">
+                      Matricule (Badge)
+                    </label>
+                    <input
+                      type="text"
+                      required
+                      placeholder="ex: 04"
+                      value={matriculeInput}
+                      onChange={(e) => setMatriculeInput(e.target.value)}
+                      className="w-full px-3 py-2 rounded-xl bg-[#070814] border border-[#21274d] text-xs text-white font-mono font-bold focus:outline-none focus:border-purple-500"
+                    />
+                  </div>
+                )}
 
                 <div>
                   <label className="block text-xs font-bold text-slate-300 mb-1">
@@ -805,12 +828,14 @@ export default function OfficerProfilePage() {
               <div className="p-3 rounded-2xl bg-[#070814] border border-[#1e2344] flex items-center justify-between text-xs">
                 <span className="text-slate-400 font-semibold">Nouveau pseudo :</span>
                 <span className="font-mono font-black text-purple-300">
-                  {matriculeInput.trim()} | {firstNameInput.trim()} {lastNameInput.trim()}
+                  {isMarshal
+                    ? `${firstNameInput.trim()} ${lastNameInput.trim()}`
+                    : `${matriculeInput.trim()} | ${firstNameInput.trim()} ${lastNameInput.trim()}`}
                 </span>
               </div>
 
               <p className="text-[10px] text-slate-400">
-                La validation synchronisera automatiquement le pseudo sur Discord et mettra à jour la fiche matricule.
+                La validation synchronisera automatiquement le pseudo sur Discord et mettra à jour la fiche.
               </p>
 
               <div className="flex items-center justify-end gap-2 pt-2 border-t border-[#181c3b]">
@@ -823,7 +848,11 @@ export default function OfficerProfilePage() {
                 </button>
                 <button
                   type="submit"
-                  disabled={savingProfile || !matriculeInput.trim() || !firstNameInput.trim()}
+                  disabled={
+                    savingProfile ||
+                    !firstNameInput.trim() ||
+                    (!isMarshal && !matriculeInput.trim())
+                  }
                   className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold transition-all disabled:opacity-50"
                 >
                   {savingProfile ? "Enregistrement..." : "Enregistrer & Renommer"}
