@@ -9,6 +9,7 @@ const {
 const fs = require('fs');
 const path = require('path');
 const config = require('../config');
+const { getSettings } = require('../utils/settingsManager');
 
 const SALAIRES_FILE = path.resolve(__dirname, '../../data/salaires.json');
 
@@ -94,7 +95,11 @@ module.exports = {
       });
     }
 
-    const targetChannel = interaction.options.getChannel('salon') || interaction.channel;
+    const settings = getSettings();
+    const configuredSalairesChannelId = settings.channels?.salaires || config.channels.salaires;
+    const targetChannel = interaction.options.getChannel('salon') || 
+      (configuredSalairesChannelId ? interaction.guild.channels.cache.get(configuredSalairesChannelId) : null) || 
+      interaction.channel;
 
     const embed = new EmbedBuilder()
       .setTitle('💵 SERVICE DU PERSONNEL & FINANCES — GRILLE DES SALAIRES')

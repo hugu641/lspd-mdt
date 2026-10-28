@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useOfficer } from "@/context/OfficerContext";
-import { useTheme } from "@/context/ThemeContext";
+import { useOfficer } from "../context/OfficerContext";
+import { useTheme } from "../context/ThemeContext";
 import { ThemeSwitcher } from "@/components/ThemeSwitcher";
 import {
   Shield,

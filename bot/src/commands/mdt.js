@@ -7,6 +7,7 @@ const {
   PermissionFlagsBits 
 } = require('discord.js');
 const config = require('../config');
+const { getSettings } = require('../utils/settingsManager');
 
 module.exports = {
   data: new SlashCommandBuilder()
@@ -20,6 +21,8 @@ module.exports = {
 
   async execute(interaction) {
     const targetChannel = interaction.options.getChannel('salon') || interaction.channel;
+    const settings = getSettings();
+    const currentMdtUrl = settings.mdt?.url || config.mdtUrl;
 
     const embed = new EmbedBuilder()
       .setTitle('💻 LSPD MOBILE DATA TERMINAL (M.D.T.) — TERMINAL SÉCURISÉ')
@@ -44,7 +47,7 @@ module.exports = {
       .addFields(
         { name: '🟢 État des Serveurs', value: '`EN LIGNE & OPÉRATIONNEL (100%)`', inline: true },
         { name: '🔐 Chiffrement', value: '`AES-256 BIT POLICE NET`', inline: true },
-        { name: '🌐 Accès Web', value: `[Cliquer ici pour ouvrir le MDT](${config.mdtUrl})`, inline: true }
+        { name: '🌐 Accès Web', value: `[Cliquer ici pour ouvrir le MDT](${currentMdtUrl})`, inline: true }
       )
       .setThumbnail('https://cdn-icons-png.flaticon.com/512/924/924915.png')
       .setImage('https://images.unsplash.com/photo-1544620347-c4fd4a3d5957?auto=format&fit=crop&w=1200&q=80')
@@ -58,7 +61,7 @@ module.exports = {
     const row = new ActionRowBuilder().addComponents(
       new ButtonBuilder()
         .setLabel('Accéder au Terminal MDT')
-        .setURL(config.mdtUrl)
+        .setURL(currentMdtUrl)
         .setStyle(ButtonStyle.Link)
         .setEmoji('🌐'),
 

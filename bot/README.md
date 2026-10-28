@@ -1,77 +1,96 @@
 # 🚔 Bot Discord LSPD — Serveur BFA RP
 
-Bot Discord officiel conçu spécialement pour le **Los Santos Police Department (LSPD)** sur le serveur RP **BFA**.
+Bot Discord officiel complet conçu spécialement pour le **Los Santos Police Department (LSPD)** sur le serveur RP **BFA**.
 
 ---
 
 ## 🌟 Fonctionnalités Incluses
 
-### 1. 🚨 Système DEFCON Dynamique (`/defcon`)
-* **Commande Slash** : `/defcon <niveau 1 à 5> [motif facultatif]`
-* **Remplacement automatique** : Le bot supprime automatiquement l'ancienne affiche DEFCON dans le salon d'annonce et publie la nouvelle.
-* **Visuels et Niveaux RP** :
-  * **DEFCON 1** : Alerte Maximale / État d'urgence (Rouge vif, mention `@everyone`, consignes armement lourd, patrouilles 2-4 agents, couvre-feu).
-  * **DEFCON 2** : Alerte Élevée / Menace Imminente (Orange, mention `@here`, binôme obligatoire).
-  * **DEFCON 3** : Vigilance Renforcée / Tension Modérée (Jaune).
-  * **DEFCON 4** : Vigilance Normale Accrue (Bleu).
-  * **DEFCON 5** : Service Normal / Calme Plat (Vert).
-* **Statut Discord dynamique** : Le statut du bot s'ajuste automatiquement (ex: `Regarde DEFCON 2 | LSPD BFA`).
+### 1. ⚙️ Centre de Configuration Ultime (`/config`)
+Vous pouvez **absolument tout configurer directement depuis Discord**, sans toucher au code ni redémarrer le bot !
+
+* **Tableau de Bord Interactif (`/config panel`) :**
+  * Affiche l'état en direct de vos salons, URL MDT, sécurité anti-pub, logs de messages, grille des salaires et packs de rôles.
+  * Boutons d'action pour ouvrir les formulaires (Modaux) : URL MDT, Commandes textuelles, Packs de rôles, Whitelist et Salaires.
+* **Configuration des Salons :**
+  * `/config salons defcon:#defcon logs_moderation:#logs logs_messages:#logs-msg salaires:#salaires`
+* **Configuration de la Journalisation des Messages :**
+  * `/config logs supprimes:true modifies:true envoyes:false salon:#logs-messages`
+* **Configuration du Terminal MDT :**
+  * `/config mdt url:https://votre-mdt.fr`
+* **Gestion de la Whitelist Anti-Pub :**
+  * `/config whitelist add entree:<id_ou_lien>`
+  * `/config whitelist remove entree:<id_ou_code>`
+  * `/config whitelist list`
 
 ---
 
-### 2. 💻 Panneau d'Accès Officiel MDT (`/mdt`)
+### 2. 🎭 Créateur de Commandes & Packs de Rôles Automatiques (`/action` & `/cmd`)
+Vous pouvez créer des commandes personnalisées qui **attribuent et retirent automatiquement une série de grades / rôles Discord à un membre** (ex: Rookie, Cadet, Officier, FTO, SWAT) !
+
+* **Créer un pack de rôles :**
+  ```text
+  /config customcmd add-pack nom:rookie ajouter_roles:@Cadet @LSPD @Radio-1 retirer_roles:@Civil @Recrue reponse:Félicitations {user}, vous intégrez le LSPD !
+  ```
+* **Exécuter le pack sur un agent :**
+  * Soit avec la commande dédiée : `/action nom:rookie membre:@Agent [motif]`
+  * Soit via `/cmd nom:rookie membre:@Agent`
+* **Effet automatique :**
+  * Attribue instantanément tous les rôles configurés.
+  * Retire les anciens rôles (ex: Civil, Recrue).
+  * Publie un communiqué officiel RH avec photo de l'agent.
+  * Journalise l'affectation dans votre salon de logs.
+
+---
+
+### 3. 📜 Traçabilité & Journalisation des Messages (Logs)
+* **Messages Supprimés :** Journalise l'auteur, le salon, l'heure, le contenu texte intégral et les pièces jointes (photos/fichiers).
+* **Messages Modifiés :** Affiche l'avant / après avec l'ancien et le nouveau texte ainsi que le lien direct vers le message.
+* **Messages Envoyés :** Optionnel (activable ou désactivable dans `/config logs`).
+
+---
+
+### 4. 🚨 Système DEFCON Dynamique (`/defcon`)
+* **Commande Slash** : `/defcon niveau:<1 à 5> [motif]`
+* **Remplacement automatique** : Supprime l'ancienne affiche dans le salon DEFCON et publie la nouvelle.
+* **Affiches officielles intégrées** :
+  * **DEFCON 3**, **DEFCON 4** et **DEFCON 5** : Affiches haute résolution officielles du Gouvernement de San Andreas !
+  * **DEFCON 1** et **DEFCON 2** : Embed d'alerte tactique haute priorité avec mentions `@everyone` / `@here`.
+* **Statut Discord dynamique** : Le bot affiche en temps réel le DEFCON actif en statut (ex: `Regarde DEFCON 2 | LSPD BFA`).
+
+---
+
+### 5. 💻 Panneau d'Accès Officiel MDT (`/mdt`)
 * Affiche un message RP soigné et immersif aux couleurs du LSPD.
-* Bouton direct **[ 🌐 Accéder au Terminal MDT ]** redirigeant directement vers votre site MDT.
-* Bouton d'aide interactif **[ ℹ️ Guide & Identifiants ]** qui donne en message privé/éphémère les consignes de connexion pour les officiers.
+* Bouton direct **[ 🌐 Accéder au Terminal MDT ]** redirigeant vers l'URL configurée.
+* Bouton interactif **[ ℹ️ Guide & Identifiants ]** pour les consignes de connexion des agents.
 
 ---
 
-### 3. 💵 Grille des Salaires Interactive (`/post-salaires`)
-* Commande pour poster le panneau permanent du Service Paye / RH.
-* Les membres ont un bouton interactif : **[ 💰 Découvrir mon salaire & la grille ]**.
-* **Affichage éphémère** : Quand un agent clique sur le bouton, l'embed s'affiche uniquement pour lui (sans spammer le salon public).
-* Fichier de configuration simple : [data/salaires.json](file:///d:/Projet%20Code/MDT/bot/data/salaires.json) où vous pouvez ajuster les grades, montants et primes.
+### 6. 💵 Grille des Salaires Interactive (`/post-salaires`)
+* Panneau permanent officiel du Service Paye / RH.
+* Bouton interactif pour les agents : **[ 💰 Découvrir mon salaire & la grille ]**.
+* **Affichage éphémère** : L'embed s'affiche uniquement pour l'agent qui a cliqué.
+* Modifiable à volonté via `/config salaire add/remove`.
 
 ---
 
-### 4. 🛡️ Système de Sécurité Anti-Pub (Whitelist & Ban 3 Strikes)
-* Détecte instantanément tous les formats de liens Discord (`discord.gg/...`, `discord.com/invite/...`, etc.).
-* **Vérification intelligente** : Résout l'invitation auprès de Discord pour vérifier l'ID réel du serveur de destination (ce qui permet d'autoriser un serveur même si un nouveau lien d'invitation est généré).
-* **Whitelist personnalisable** : Gérée dans [data/whitelist.json](file:///d:/Projet%20Code/MDT/bot/data/whitelist.json).
-* **Sanction graduelle** :
-  * **Infraction 1** : Suppression instantanée + MP d'avertissement (`1 / 3`).
-  * **Infraction 2** : Suppression instantanée + MP d'avertissement renforcé (`2 / 3`).
-  * **Infraction 3** : Suppression instantanée + MP d'expulsion + **Bannissement automatique** du serveur.
-* **Journalisation** : Envoi d'un rapport détaillé dans votre salon de logs de modération.
-* **Gestion du staff** : Commandes `/warns check <membre>` et `/warns reset <membre>`.
+### 7. 🛡️ Sécurité Anti-Pub (Whitelist & Ban 3 Strikes)
+* Détecte et bloque tous les liens d'invitations Discord non autorisés.
+* Vérification de l'ID réel du serveur de destination.
+* **Sanction graduelle** : 1er et 2ème avertissement en MP (`1/3`, `2/3`), puis **Bannissement automatique** au 3ème strike (`3/3`).
+* Commandes staff : `/warns check <membre>` et `/warns reset <membre>`.
 
 ---
 
-## 🚀 Installation & Démarrage
+## 🚀 Guide de Lancement
 
-### 1. Remplir le fichier `.env`
-Copiez le fichier `.env.example` en `.env` dans le dossier `bot/` :
-```ini
-DISCORD_BOT_TOKEN="VOTRE_TOKEN_ICI"
-DISCORD_CLIENT_ID="VOTRE_ID_APPLICATION_ICI"
-DISCORD_GUILD_ID="VOTRE_ID_SERVEUR_DISCORD"
-
-DEFCON_CHANNEL_ID="ID_SALON_DEFCON"
-LOGS_CHANNEL_ID="ID_SALON_LOGS"
-SALAIRES_CHANNEL_ID="ID_SALON_SALAIRES"
-
-ADMIN_ROLE_IDS="ID_ROLE_COMMANDANT,ID_ROLE_CAPITAINE"
-INVITE_BYPASS_ROLE_IDS="ID_ROLE_STAFF"
-
-MDT_URL="http://localhost:3005"
-```
-
-### 2. Déployer les commandes Slash
-```bash
-npm run deploy
-```
-
-### 3. Lancer le bot
-```bash
-npm start
-```
+1. **Remplir `bot/.env`** avec votre Token et Client ID.
+2. **Déployer les commandes :**
+   ```bash
+   npm run deploy
+   ```
+3. **Démarrer le bot :**
+   ```bash
+   npm start
+   ```

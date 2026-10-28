@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { EmbedBuilder, PermissionFlagsBits } = require('discord.js');
 const config = require('../config');
+const { getSettings } = require('./settingsManager');
 const { addWarning } = require('./warningManager');
 
 const WHITELIST_FILE = path.resolve(__dirname, '../../data/whitelist.json');
@@ -157,8 +158,10 @@ async function handleAntiInvite(message, client) {
   }
 
   // 4. Notification dans le salon de logs de modération (si configuré)
-  if (config.channels.logs) {
-    const logChannel = message.guild.channels.cache.get(config.channels.logs);
+  const settings = getSettings();
+  const logChannelId = settings.channels?.logs || config.channels.logs;
+  if (logChannelId) {
+    const logChannel = message.guild.channels.cache.get(logChannelId);
     if (logChannel) {
       const logEmbed = new EmbedBuilder()
         .setTitle(currentStrikes >= 3 ? '🔨 LOG : Membre Banni (Anti-Pub 3/3)' : '🛡️ LOG : Invitation Non Autorisée Supprimée')

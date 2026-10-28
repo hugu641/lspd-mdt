@@ -2,6 +2,7 @@ const fs = require('fs');
 const path = require('path');
 const { EmbedBuilder, AttachmentBuilder } = require('discord.js');
 const config = require('../config');
+const { getSettings } = require('./settingsManager');
 
 const DEFCON_FILE = path.resolve(__dirname, '../../data/defcon_data.json');
 const ASSETS_DIR = path.resolve(__dirname, '../../assets/defcon');
@@ -80,9 +81,10 @@ function buildDefconPayload(levelInfo, customReason, author) {
  * Met à jour le DEFCON sur le salon dédié
  */
 async function updateDefcon(client, guild, levelNumber, customReason, authorMember) {
-  const channelId = config.channels.defcon;
+  const settings = getSettings();
+  const channelId = settings.channels?.defcon || config.channels.defcon;
   if (!channelId) {
-    throw new Error("L'identifiant du salon DEFCON n'est pas configuré dans DEFCON_CHANNEL_ID.");
+    throw new Error("L'identifiant du salon DEFCON n'est pas configuré. Utilisez `/config salons defcon:#salon`.");
   }
 
   const channel = guild.channels.cache.get(channelId) || await guild.channels.fetch(channelId).catch(() => null);

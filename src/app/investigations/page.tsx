@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
-import { useOfficer } from "@/context/OfficerContext";
+import { useOfficer } from "../../context/OfficerContext";
 import {
   FileText,
   Plus,

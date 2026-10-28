@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
-import { useOfficer } from "@/context/OfficerContext";
+import { useOfficer } from "../../../context/OfficerContext";
 import {
   Users,
   Shield,
