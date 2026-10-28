@@ -26,6 +26,7 @@ import {
   Phone,
   Check,
   UserPlus,
+  RefreshCw,
 } from "lucide-react";
 
 interface NavGroup {
@@ -39,7 +40,7 @@ interface NavGroup {
 
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const { currentOfficer, setCurrentOfficer, logout } = useOfficer();
+  const { currentOfficer, setCurrentOfficer, logout, syncWithDiscord, isSyncingDiscord } = useOfficer();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [departmentMode, setDepartmentMode] = useState<"POLICE" | "EMS">("POLICE");
   const [showPhoneModal, setShowPhoneModal] = useState(false);
@@ -398,8 +399,25 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             </div>
           </div>
 
-          {/* Right Controls: Logout & User Pill */}
-          <div className="flex items-center gap-2.5 sm:gap-3.5">
+          {/* Right Controls: Sync, Logout & User Pill */}
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* Real-time Discord Sync button */}
+            {currentOfficer?.discordId && (
+              <button
+                onClick={() => syncWithDiscord()}
+                disabled={isSyncingDiscord}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full border text-xs font-bold transition-all shadow-sm ${
+                  isSyncingDiscord
+                    ? "bg-purple-900 border-purple-500 text-purple-200 animate-pulse"
+                    : "bg-purple-950/60 border-purple-700/60 hover:bg-purple-900 text-purple-300 hover:text-white"
+                }`}
+                title="Synchroniser vos rôles Discord et certifications en temps réel sans vous déconnecter"
+              >
+                <RefreshCw className={`w-3.5 h-3.5 text-purple-400 ${isSyncingDiscord ? "animate-spin" : ""}`} />
+                <span className="hidden sm:inline">{isSyncingDiscord ? "Sync..." : "Sync Discord"}</span>
+              </button>
+            )}
+
             {/* Logout Button */}
             <button
               onClick={() => logout()}

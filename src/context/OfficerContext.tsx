@@ -41,6 +41,8 @@ interface OfficerContextType {
   updateStatus: (status: string) => Promise<void>;
   updateUnitType: (unitType: string) => Promise<void>;
   refreshOfficers: () => Promise<void>;
+  syncWithDiscord: () => Promise<void>;
+  isSyncingDiscord: boolean;
   logout: () => Promise<void>;
   isLoading: boolean;
   isAuthenticated: boolean;
@@ -53,6 +55,7 @@ export function OfficerProvider({ children }: { children: React.ReactNode }) {
   const [allOfficers, setAllOfficers] = useState<Officer[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isSyncingDiscord, setIsSyncingDiscord] = useState(false);
   const pathname = usePathname();
   const router = useRouter();
 
@@ -104,6 +107,50 @@ export function OfficerProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     checkAuthAndFetchOfficers();
   }, [pathname]);
+
+  // Real-time automatic synchronization with Discord
+  useEffect(() => {
+    // 1. Instantly re-sync when tab gains focus or becomes visible
+    const handleSyncOnFocus = () => {
+      if (document.visibilityState === "visible") {
+        checkAuthAndFetchOfficers();
+      }
+    };
+
+    window.addEventListener("focus", handleSyncOnFocus);
+    document.addEventListener("visibilitychange", handleSyncOnFocus);
+
+    // 2. Periodic background sync every 15 seconds (detects role changes in real time without refreshing or relogging)
+    const interval = setInterval(() => {
+      if (document.visibilityState === "visible") {
+        checkAuthAndFetchOfficers();
+      }
+    }, 15000);
+
+    return () => {
+      window.removeEventListener("focus", handleSyncOnFocus);
+      document.removeEventListener("visibilitychange", handleSyncOnFocus);
+      clearInterval(interval);
+    };
+  }, []);
+
+  const syncWithDiscord = async () => {
+    setIsSyncingDiscord(true);
+    try {
+      if (currentOfficer?.discordId) {
+        await fetch("/api/discord/sync-certifications", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ discordId: currentOfficer.discordId }),
+        });
+      }
+      await checkAuthAndFetchOfficers();
+    } catch (err) {
+      console.error("syncWithDiscord error:", err);
+    } finally {
+      setIsSyncingDiscord(false);
+    }
+  };
 
   const setCurrentOfficer = (officer: Officer) => {
     setCurrentOfficerState(officer);
@@ -173,6 +220,8 @@ export function OfficerProvider({ children }: { children: React.ReactNode }) {
         updateStatus,
         updateUnitType,
         refreshOfficers: checkAuthAndFetchOfficers,
+        syncWithDiscord,
+        isSyncingDiscord,
         logout,
         isLoading,
         isAuthenticated,

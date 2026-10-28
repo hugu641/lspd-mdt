@@ -77,6 +77,32 @@ export default function AdminPage() {
 
     const [officerSyncStatus, setOfficerSyncStatus] = useState<{ [officerId: string]: string }>({});
   const [editingDiscordId, setEditingDiscordId] = useState<{ [officerId: string]: string }>({});
+  const [scanningDiscordCertifications, setScanningDiscordCertifications] = useState(false);
+
+  const handleScanAllDiscordCertifications = async () => {
+    setScanningDiscordCertifications(true);
+    try {
+      const res = await fetch("/api/discord/sync-certifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        alert(
+          `✓ Scan Discord terminé avec succès !\n• ${data.totalScanned} agents scannés\n• ${data.updatedCount} profils actualisés\n\nTous les rôles, grades et certifications sont désormais synchronisés.`
+        );
+        refreshOfficers();
+        fetchData();
+      } else {
+        alert(`✕ Erreur : ${data.error || "Impossible de scanner les certifications"}`);
+      }
+    } catch (err: any) {
+      alert(`Erreur : ${err?.message || "Erreur de connexion"}`);
+    } finally {
+      setScanningDiscordCertifications(false);
+    }
+  };
 
   const fetchData = async () => {
     try {
@@ -427,15 +453,27 @@ export default function AdminPage() {
           </p>
         </div>
 
-        <div className="flex items-center gap-2 pt-1 sm:pt-0">
+        <div className="flex flex-wrap items-center gap-2 pt-1 sm:pt-0">
           {activeTab === "officers" && (
-            <button
-              onClick={() => setShowOfficerModal(true)}
-              className="flex-1 sm:flex-none justify-center inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-lg shadow-purple-900/40 transition-all"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Enrôler Agent</span>
-            </button>
+            <>
+              <button
+                onClick={handleScanAllDiscordCertifications}
+                disabled={scanningDiscordCertifications}
+                className="flex-1 sm:flex-none justify-center inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl bg-purple-950/80 hover:bg-purple-900 border border-purple-600/70 text-purple-200 hover:text-white text-xs font-bold shadow-lg shadow-purple-950/40 transition-all disabled:opacity-50"
+                title="Scanne tous les rôles Discord de tous les agents et applique leurs certifications et grades automatiquement"
+              >
+                <RefreshCw className={`w-4 h-4 text-purple-400 ${scanningDiscordCertifications ? "animate-spin" : ""}`} />
+                <span>{scanningDiscordCertifications ? "Scan en cours..." : "⚡ Scanner Rôles & Certifs Discord"}</span>
+              </button>
+
+              <button
+                onClick={() => setShowOfficerModal(true)}
+                className="flex-1 sm:flex-none justify-center inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold shadow-lg shadow-purple-900/40 transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Enrôler Agent</span>
+              </button>
+            </>
           )}
 
           {activeTab === "penal" && (

@@ -1411,3 +1411,433 @@ export async function assignRecruitmentAcceptedDiscordRoleAndNotify(
     };
   }
 }
+
+// =========================================================================
+// REAL-TIME DISCORD ROLE & CERTIFICATIONS SCANNER ENGINE
+// =========================================================================
+
+export interface CertificationRule {
+  keywords: string[];
+  title: string;
+  badgeName: string;
+  badgeIcon: string;
+  category: string;
+  description: string;
+}
+
+export const DISCORD_CERTIFICATIONS_MAP: CertificationRule[] = [
+  {
+    keywords: ["ppalourd", "ppa lourd", "lourd"],
+    title: "Armement Tactique & PPA Lourd",
+    badgeName: "PPA Lourd",
+    badgeIcon: "Crosshair",
+    category: "Armement",
+    description: "Habilitation au port d'arme lourde de service et d'intervention tactique.",
+  },
+  {
+    keywords: ["ppa", "permisdeportdarme"],
+    title: "Permis de Port d'Arme (PPA)",
+    badgeName: "PPA Civil",
+    badgeIcon: "Shield",
+    category: "Armement",
+    description: "Certification de maniement et port d'arme de poing réglementaire.",
+  },
+  {
+    keywords: ["asd", "airsupport", "aerien", "supportaerien", "pilot", "helico"],
+    title: "Air Support Division (ASD)",
+    badgeName: "Pilote ASD",
+    badgeIcon: "Plane",
+    category: "Aérien",
+    description: "Pilote breveté de la division aérienne de police (Hélicoptère).",
+  },
+  {
+    keywords: ["leadnegociation", "negociat", "negociation"],
+    title: "Lead Négociation & Prises d'Otage",
+    badgeName: "Négociateur",
+    badgeIcon: "MessageSquare",
+    category: "Tactique",
+    description: "Spécialiste de la désescalade, médiation et négociation de crise.",
+  },
+  {
+    keywords: ["leaddispatch", "dispatch"],
+    title: "Lead Dispatch & Régulation Radio",
+    badgeName: "Lead Dispatch",
+    badgeIcon: "Radio",
+    category: "Procédure",
+    description: "Gestion des fréquences radio, affectation des appels et supervision 10-Codes.",
+  },
+  {
+    keywords: ["brevetpsychologique", "psychologique", "psycho"],
+    title: "Brevet Psychologique & Aptitude",
+    badgeName: "Brevet Psycho",
+    badgeIcon: "Brain",
+    category: "Spécialité",
+    description: "Aptitude psychologique validée pour interventions sous haute tension.",
+  },
+  {
+    keywords: ["formationperimetredesecurite", "perimetredesecurite", "perimetre"],
+    title: "Périmètres de Sécurité & Zonage",
+    badgeName: "Périmètre Sécurité",
+    badgeIcon: "ShieldAlert",
+    category: "Procédure",
+    description: "Mise en place de cordons de sécurité, rubalise et sécurisation de scènes de crime.",
+  },
+  {
+    keywords: ["formationcallradio", "callradio", "radiocode"],
+    title: "Procédures Radio & 10-Codes",
+    badgeName: "Procédures Radio",
+    badgeIcon: "Radio",
+    category: "Procédure",
+    description: "Maîtrise des protocoles radio, 10-codes et phraséologie de service.",
+  },
+  {
+    keywords: ["formationprocedure", "procedure", "miranda"],
+    title: "Procédures Légales & Droits Miranda",
+    badgeName: "Procédures Légales",
+    badgeIcon: "FileText",
+    category: "Procédure",
+    description: "Respect des règles de garde à vue, rédaction des PV et lecture des droits.",
+  },
+  {
+    keywords: ["formateur", "instructeur", "fto"],
+    title: "Formateur Police Academy (FTO)",
+    badgeName: "Instructeur FTO",
+    badgeIcon: "GraduationCap",
+    category: "Spécialité",
+    description: "Habilité à former, évaluer et instruire les nouvelles recrues du LSPD.",
+  },
+  {
+    keywords: ["responsablepa", "directionpa"],
+    title: "Direction Police Academy",
+    badgeName: "Responsable Academy",
+    badgeIcon: "Award",
+    category: "Spécialité",
+    description: "Cadre formateur responsable du cursus d'incorporation de l'Academy.",
+  },
+  {
+    keywords: ["recruteurpa", "recruteurlspd", "recruteur", "recrutement"],
+    title: "Division du Recrutement & RH",
+    badgeName: "Officier Recruteur",
+    badgeIcon: "UserCheck",
+    category: "Spécialité",
+    description: "Officier habilité aux entretiens d'embauche et sélection des postulants.",
+  },
+  {
+    keywords: ["hp", "highpursuit", "interception"],
+    title: "High Pursuit & Interception Rapide (HP)",
+    badgeName: "Pilote HP",
+    badgeIcon: "Zap",
+    category: "Conduite",
+    description: "Conduite d'urgence avancée, manœuvres PIT et neutralisation de véhicules en fuite.",
+  },
+  {
+    keywords: ["doa"],
+    title: "Division Opérations Aériennes & Spéciales (DOA)",
+    badgeName: "Opérateur DOA",
+    badgeIcon: "Shield",
+    category: "Tactique",
+    description: "Unité d'appui opérationnel lourd et interventions coordonnées.",
+  },
+  {
+    keywords: ["marry", "mary", "moto", "motard"],
+    title: "Brigade Motorisée (Unité Mary)",
+    badgeName: "Motard Police",
+    badgeIcon: "Bike",
+    category: "Conduite",
+    description: "Pilote d'intervention motocycliste pour escorte et circulation rapide.",
+  },
+  {
+    keywords: ["leadunites", "leadunite"],
+    title: "Commandement de Quart & Lead Unités",
+    badgeName: "Lead Unités",
+    badgeIcon: "Star",
+    category: "Tactique",
+    description: "Gestion stratégique des patrouilles sur le terrain et dispatch opérationnel.",
+  },
+];
+
+/**
+ * Normalizes a role string to lowercase alphanumeric without accents/emojis
+ */
+function cleanRoleString(str: string): string {
+  return str
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+/**
+ * Sync an officer's rank, permissions, and certifications in real-time from Discord!
+ */
+export async function syncOfficerFromDiscord(discordIdOrOfficerId: string) {
+  try {
+    const config = await getDiscordConfig();
+    const token = config.botToken;
+    const guildId = config.guildId;
+
+    if (!token || !guildId) {
+      return null;
+    }
+
+    // 1. Find Officer in DB
+    const officer = await prisma.officer.findFirst({
+      where: {
+        OR: [
+          { discordId: discordIdOrOfficerId },
+          { id: discordIdOrOfficerId },
+        ],
+      },
+      include: {
+        badges: { include: { course: true } },
+      },
+    });
+
+    if (!officer || !officer.discordId) {
+      return null;
+    }
+
+    const cleanDiscordId = officer.discordId.trim().replace(/[<@!>]/g, "");
+
+    // 2. Fetch Guild Member from Discord
+    const memberRes = await fetch(
+      `https://discord.com/api/v10/guilds/${guildId}/members/${cleanDiscordId}`,
+      { headers: { Authorization: `Bot ${token}` } }
+    );
+
+    if (!memberRes.ok) {
+      return officer;
+    }
+
+    const member = await memberRes.json();
+    const memberRoleIds: string[] = member.roles || [];
+
+    // 3. Fetch Guild Roles
+    const rolesRes = await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
+      headers: { Authorization: `Bot ${token}` },
+    });
+
+    if (!rolesRes.ok) {
+      return officer;
+    }
+
+    const allGuildRoles: any[] = await rolesRes.json();
+    const memberRoles = allGuildRoles.filter((r) => memberRoleIds.includes(r.id));
+    const memberRoleNames = memberRoles.map((r) => r.name);
+    const cleanedMemberRoleNames = memberRoleNames.map(cleanRoleString);
+
+    // 4. Detect Rank
+    const detectedRank = detectRankFromRoleNames(memberRoleNames);
+
+    // 5. Detect Admin / Staff / US Marshal
+    const isMarshal =
+      (detectedRank && detectedRank.toLowerCase().includes("marshal")) ||
+      cleanedMemberRoleNames.some((r) => r.includes("marshal") || r.includes("marshall"));
+
+    const isAdminOrFounder =
+      isMarshal ||
+      detectedRank === "Chief of Police" ||
+      detectedRank === "Assistant-Chief" ||
+      detectedRank === "Deputy-Chief" ||
+      cleanedMemberRoleNames.some(
+        (r) =>
+          r === "" ||
+          r.includes("admin") ||
+          r.includes("fondateur") ||
+          r.includes("owner") ||
+          r.includes("staff") ||
+          r.includes("direction")
+      );
+
+    // 6. Detect Instructor & Recruiter
+    const isInstructor = cleanedMemberRoleNames.some(
+      (r) => r.includes("formateur") || r.includes("instructeur") || r.includes("fto") || r.includes("responsablepa")
+    );
+
+    const isRecruiter = cleanedMemberRoleNames.some(
+      (r) => r.includes("recruteur") || r.includes("recrutement")
+    );
+
+    // 7. Prepare update payload
+    const updateData: Record<string, any> = {};
+
+    if (detectedRank && officer.rank !== detectedRank) {
+      updateData.rank = detectedRank;
+      if (!isMarshal) {
+        updateData.callsign = `${detectedRank.toUpperCase()}-${officer.badgeNumber}`;
+      }
+    }
+
+    if (isMarshal && officer.department !== "US Marshal") {
+      updateData.department = "US Marshal";
+    } else if (!isMarshal && officer.department === "US Marshal" && detectedRank && !detectedRank.includes("Marshal")) {
+      updateData.department = "LSPD";
+    }
+
+    if (officer.isAdmin !== isAdminOrFounder) {
+      updateData.isAdmin = isAdminOrFounder;
+    }
+
+    if (officer.isInstructor !== isInstructor) {
+      updateData.isInstructor = isInstructor;
+    }
+
+    if (officer.isRecruiter !== isRecruiter) {
+      updateData.isRecruiter = isRecruiter;
+    }
+
+    // Sync Discord tag / avatar if updated
+    if (member.user?.username && officer.discordTag !== member.user.username) {
+      updateData.discordTag = member.user.username;
+    }
+    if (member.user?.avatar) {
+      const newAvatarUrl = `https://cdn.discordapp.com/avatars/${cleanDiscordId}/${member.user.avatar}.png`;
+      if (officer.avatarUrl !== newAvatarUrl) {
+        updateData.avatarUrl = newAvatarUrl;
+      }
+    }
+
+    // Apply Officer DB updates if any
+    let updatedOfficer = officer;
+    if (Object.keys(updateData).length > 0) {
+      updatedOfficer = await prisma.officer.update({
+        where: { id: officer.id },
+        data: updateData,
+        include: { badges: { include: { course: true } } },
+      });
+    }
+
+    // 8. CERTIFICATIONS / BADGES SCANNING & REAL-TIME ATTRIBUTION
+    const existingBadgeCourseTitles = (updatedOfficer.badges || []).map(
+      (b) => b.course?.title?.toLowerCase()
+    );
+
+    for (const certRule of DISCORD_CERTIFICATIONS_MAP) {
+      // Check if user has this certification on Discord
+      const hasCertificationOnDiscord = cleanedMemberRoleNames.some((cleanRole) =>
+        certRule.keywords.some((kw) => cleanRole.includes(kw))
+      );
+
+      if (hasCertificationOnDiscord) {
+        // Ensure the TrainingCourse exists in the database
+        let course = await prisma.trainingCourse.findFirst({
+          where: { title: certRule.title },
+        });
+
+        if (!course) {
+          course = await prisma.trainingCourse.create({
+            data: {
+              title: certRule.title,
+              description: certRule.description,
+              category: certRule.category,
+              badgeName: certRule.badgeName,
+              badgeIcon: certRule.badgeIcon,
+            },
+          });
+        }
+
+        // Check if badge is already awarded to officer
+        const alreadyHasBadge = (updatedOfficer.badges || []).some(
+          (b) => b.courseId === course!.id || b.course?.title?.toLowerCase() === certRule.title.toLowerCase()
+        );
+
+        if (!alreadyHasBadge) {
+          await prisma.officerBadge.create({
+            data: {
+              officerId: updatedOfficer.id,
+              courseId: course.id,
+              awardedBy: "Bot Discord • Rôle Synchronisé",
+            },
+          });
+        }
+      }
+    }
+
+    // Return the final fresh officer with all badges and relations
+    return await prisma.officer.findUnique({
+      where: { id: updatedOfficer.id },
+      include: {
+        badges: { include: { course: true } },
+      },
+    });
+  } catch (error) {
+    console.error("syncOfficerFromDiscord error:", error);
+    return null;
+  }
+}
+
+/**
+ * Scan all officers with a Discord ID and synchronize all roles and certifications!
+ */
+export async function syncAllOfficersFromDiscord() {
+  try {
+    const config = await getDiscordConfig();
+    const token = config.botToken;
+    const guildId = config.guildId;
+
+    if (!token || !guildId) {
+      return {
+        success: false,
+        error: "Configuration Discord incomplète (botToken ou guildId manquant)",
+      };
+    }
+
+    // Fetch all officers with discordId
+    const officers = await prisma.officer.findMany({
+      where: {
+        discordId: { not: null },
+      },
+    });
+
+    const results: Array<{
+      id: string;
+      name: string;
+      badgeNumber: string;
+      oldRank: string;
+      newRank: string;
+      badgesCount: number;
+    }> = [];
+
+    let updatedCount = 0;
+
+    for (const off of officers) {
+      if (!off.discordId) continue;
+      const synced = await syncOfficerFromDiscord(off.discordId);
+      if (synced) {
+        const changed =
+          synced.rank !== off.rank ||
+          synced.isAdmin !== off.isAdmin ||
+          synced.isInstructor !== off.isInstructor ||
+          synced.isRecruiter !== off.isRecruiter ||
+          (synced.badges?.length || 0) !== (off as any).badges?.length;
+
+        if (changed) {
+          updatedCount++;
+        }
+
+        results.push({
+          id: synced.id,
+          name: synced.name,
+          badgeNumber: synced.badgeNumber,
+          oldRank: off.rank,
+          newRank: synced.rank,
+          badgesCount: synced.badges?.length || 0,
+        });
+      }
+    }
+
+    return {
+      success: true,
+      totalScanned: officers.length,
+      updatedCount,
+      results,
+    };
+  } catch (error: any) {
+    console.error("syncAllOfficersFromDiscord error:", error);
+    return {
+      success: false,
+      error: error?.message || "Erreur de synchronisation globale",
+    };
+  }
+}
+

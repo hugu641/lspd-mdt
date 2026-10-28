@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "../../../../lib/prisma";
-import { verifySessionToken, getDiscordConfig } from "../../../../lib/discord";
+import { verifySessionToken, getDiscordConfig, syncOfficerFromDiscord } from "../../../../lib/discord";
 
 export const dynamic = "force-dynamic";
 
@@ -29,7 +29,7 @@ export async function GET() {
     }
 
     // Load full officer from database
-    const officer = await prisma.officer.findUnique({
+    let officer = await prisma.officer.findUnique({
       where: { id: payload.officerId },
       include: {
         badges: { include: { course: true } },
@@ -41,6 +41,18 @@ export async function GET() {
         authenticated: false,
         authRequired: config.authRequired,
       });
+    }
+
+    // REAL-TIME SYNC: If officer has Discord ID, seamlessly sync their latest Discord roles, rank, and certifications
+    if (officer.discordId) {
+      try {
+        const freshlySynced = await syncOfficerFromDiscord(officer.discordId);
+        if (freshlySynced) {
+          officer = freshlySynced;
+        }
+      } catch (syncErr) {
+        console.warn("Background Discord sync skipped in /api/auth/me:", syncErr);
+      }
     }
 
     return NextResponse.json({

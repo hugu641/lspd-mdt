@@ -19,14 +19,16 @@ import {
   ShieldAlert,
   Dog,
   BookOpen,
+  RefreshCw,
 } from "lucide-react";
 
 export default function TrainingsPage() {
-  const { currentOfficer, allOfficers, refreshOfficers } = useOfficer();
+  const { currentOfficer, allOfficers, refreshOfficers, syncWithDiscord, isSyncingDiscord } = useOfficer();
   const [courses, setCourses] = useState<any[]>([]);
   const [sessions, setSessions] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<"planning" | "catalogue" | "matrice">("planning");
   const [loading, setLoading] = useState(true);
+  const [isScanningAll, setIsScanningAll] = useState(false);
 
   // Modals
   const [showCourseModal, setShowCourseModal] = useState(false);
@@ -70,6 +72,31 @@ export default function TrainingsPage() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const handleScanAllDiscord = async () => {
+    setIsScanningAll(true);
+    try {
+      const res = await fetch("/api/discord/sync-certifications", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({}),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        alert(
+          `Synchronisation Discord réussie !\n\n• Officiers scannés : ${data.totalScanned}\n• Profils mis à jour : ${data.updated}\n• Certifications attribuées : ${data.totalBadgesAwarded}`
+        );
+        await refreshOfficers();
+        await fetchData();
+      } else {
+        alert(data.error || "Erreur lors de la synchronisation");
+      }
+    } catch (err: any) {
+      alert("Erreur de connexion : " + err.message);
+    } finally {
+      setIsScanningAll(false);
+    }
+  };
 
   // Register current officer
   const handleRegister = async (sessionId: string) => {
@@ -202,6 +229,18 @@ export default function TrainingsPage() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2 pt-1 sm:pt-0">
+          {(currentOfficer?.isInstructor || currentOfficer?.isAdmin) && (
+            <button
+              onClick={handleScanAllDiscord}
+              disabled={isScanningAll}
+              className="flex-1 sm:flex-none justify-center inline-flex items-center gap-1.5 px-3 py-2 rounded-xl bg-indigo-600/20 hover:bg-indigo-600/30 text-indigo-300 text-xs font-bold border border-indigo-500/30 transition-all disabled:opacity-50 shadow-sm"
+              title="Scanner les rôles Discord de tout le serveur et attribuer les habilitations automatiquement"
+            >
+              <RefreshCw className={`w-4 h-4 ${isScanningAll ? "animate-spin text-indigo-400" : "text-indigo-400"}`} />
+              <span>{isScanningAll ? "Scan Discord..." : "Scan Rôles Discord"}</span>
+            </button>
+          )}
+
           {currentOfficer?.isInstructor && (
             <>
               <button
@@ -231,7 +270,21 @@ export default function TrainingsPage() {
               <Award className="w-5 h-5 sm:w-6 sm:h-6" />
             </div>
             <div>
-              <div className="text-[10px] sm:text-xs text-slate-400 font-semibold uppercase">Vos Habilitations</div>
+              <div className="flex items-center gap-2">
+                <span className="text-[10px] sm:text-xs text-slate-400 font-semibold uppercase">Vos Habilitations</span>
+                <button
+                  onClick={async () => {
+                    await syncWithDiscord();
+                    await fetchData();
+                  }}
+                  disabled={isSyncingDiscord}
+                  className="px-2 py-0.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 text-[10px] font-bold border border-slate-700 flex items-center gap-1 transition-all"
+                  title="Synchroniser immédiatement mes certifications depuis Discord"
+                >
+                  <RefreshCw className={`w-3 h-3 ${isSyncingDiscord ? "animate-spin text-theme-primary" : ""}`} />
+                  <span>{isSyncingDiscord ? "Sync..." : "Sync Discord"}</span>
+                </button>
+              </div>
               <div className="text-xs sm:text-sm font-bold text-white">
                 {currentOfficer.name} • {currentOfficer.rank}
               </div>
