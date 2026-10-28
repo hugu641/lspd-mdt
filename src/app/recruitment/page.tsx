@@ -35,7 +35,26 @@ import {
   Copy,
   Link as LinkIcon,
   MessageSquare,
+  ArrowUp,
+  ArrowDown,
+  Eye,
+  EyeOff,
+  Sliders,
 } from "lucide-react";
+
+interface FormField {
+  id: string;
+  name: string;
+  label: string;
+  type: string; // text, textarea, number, select, radio, checkbox
+  placeholder?: string | null;
+  helpText?: string | null;
+  options?: string | null;
+  required: boolean;
+  orderIndex: number;
+  enabled: boolean;
+  isSystem?: boolean;
+}
 
 interface Candidate {
   id: string;
@@ -49,6 +68,7 @@ interface Candidate {
   availability?: string | null;
   motivation?: string | null;
   experience?: string | null;
+  customAnswers?: any;
   status: "En attente" | "Entretien prévu" | "Accepté" | "Refusé";
   interviewDate?: string | null;
   interviewNotes?: string | null;
@@ -81,10 +101,26 @@ interface OfficerRecruiter {
 export default function RecruitmentPage() {
   const { currentOfficer } = useOfficer();
 
-  const [activeTab, setActiveTab] = useState<"candidates" | "recruiters">("candidates");
+  const [activeTab, setActiveTab] = useState<"candidates" | "recruiters" | "form-builder">("candidates");
   const [candidates, setCandidates] = useState<Candidate[]>([]);
   const [officers, setOfficers] = useState<OfficerRecruiter[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Form fields builder state
+  const [formFields, setFormFields] = useState<FormField[]>([]);
+  const [loadingFields, setLoadingFields] = useState(false);
+  const [showFieldModal, setShowFieldModal] = useState(false);
+  const [editingField, setEditingField] = useState<FormField | null>(null);
+  const [fieldFormData, setFieldFormData] = useState({
+    label: "",
+    type: "text",
+    placeholder: "",
+    helpText: "",
+    options: "",
+    required: false,
+    enabled: true,
+  });
+  const [savingField, setSavingField] = useState(false);
 
   // Filters
   const [searchQuery, setSearchQuery] = useState("");
@@ -148,9 +184,162 @@ export default function RecruitmentPage() {
     }
   };
 
+  const fetchFormFields = async () => {
+    setLoadingFields(true);
+    try {
+      const res = await fetch("/api/recruitment/fields");
+      if (res.ok) {
+        const data = await res.json();
+        setFormFields(Array.isArray(data) ? data : []);
+      }
+    } catch (err) {
+      console.error("Erreur lors de la récupération des champs :", err);
+    } finally {
+      setLoadingFields(false);
+    }
+  };
+
   useEffect(() => {
-    Promise.all([fetchCandidates(), fetchOfficers()]).finally(() => setLoading(false));
+    Promise.all([fetchCandidates(), fetchOfficers(), fetchFormFields()]).finally(() => setLoading(false));
   }, []);
+
+  // Form Fields actions
+  const handleOpenCreateField = () => {
+    setEditingField(null);
+    setFieldFormData({
+      label: "",
+      type: "text",
+      placeholder: "",
+      helpText: "",
+      options: "",
+      required: false,
+      enabled: true,
+    });
+    setShowFieldModal(true);
+  };
+
+  const handleOpenEditField = (field: FormField) => {
+    setEditingField(field);
+    setFieldFormData({
+      label: field.label,
+      type: field.type,
+      placeholder: field.placeholder || "",
+      helpText: field.helpText || "",
+      options: field.options || "",
+      required: field.required,
+      enabled: field.enabled,
+    });
+    setShowFieldModal(true);
+  };
+
+  const handleSaveField = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!fieldFormData.label.trim()) {
+      alert("Veuillez renseigner l'intitulé de la question.");
+      return;
+    }
+
+    setSavingField(true);
+    try {
+      if (editingField) {
+        const res = await fetch(`/api/recruitment/fields/${editingField.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(fieldFormData),
+        });
+        if (res.ok) {
+          setShowFieldModal(false);
+          await fetchFormFields();
+        } else {
+          const err = await res.json();
+          alert(err.error || "Erreur lors de la modification du champ");
+        }
+      } else {
+        const res = await fetch("/api/recruitment/fields", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(fieldFormData),
+        });
+        if (res.ok) {
+          setShowFieldModal(false);
+          await fetchFormFields();
+        } else {
+          const err = await res.json();
+          alert(err.error || "Erreur lors de la création du champ");
+        }
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Erreur lors de l'enregistrement de la question.");
+    } finally {
+      setSavingField(false);
+    }
+  };
+
+  const handleToggleFieldEnabled = async (field: FormField) => {
+    try {
+      const res = await fetch(`/api/recruitment/fields/${field.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ enabled: !field.enabled }),
+      });
+      if (res.ok) {
+        setFormFields((prev) =>
+          prev.map((f) => (f.id === field.id ? { ...f, enabled: !f.enabled } : f))
+        );
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleMoveField = async (field: FormField, direction: "up" | "down") => {
+    const currentIndex = formFields.findIndex((f) => f.id === field.id);
+    if (currentIndex === -1) return;
+    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= formFields.length) return;
+
+    const targetField = formFields[targetIndex];
+    const newOrder = targetField.orderIndex;
+    const oldOrder = field.orderIndex;
+
+    const updated = [...formFields];
+    updated[currentIndex] = { ...targetField, orderIndex: oldOrder };
+    updated[targetIndex] = { ...field, orderIndex: newOrder };
+    setFormFields(updated);
+
+    try {
+      await Promise.all([
+        fetch(`/api/recruitment/fields/${field.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderIndex: newOrder }),
+        }),
+        fetch(`/api/recruitment/fields/${targetField.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ orderIndex: oldOrder }),
+        }),
+      ]);
+      await fetchFormFields();
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleDeleteField = async (fieldId: string, fieldLabel: string) => {
+    if (!confirm(`Supprimer définitivement la question "${fieldLabel}" du formulaire ?`)) return;
+    try {
+      const res = await fetch(`/api/recruitment/fields/${fieldId}`, {
+        method: "DELETE",
+      });
+      if (res.ok) {
+        setFormFields((prev) => prev.filter((f) => f.id !== fieldId));
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  };
 
   // Copy Public Application Link
   const handleCopyApplicationLink = () => {
@@ -597,6 +786,22 @@ export default function RecruitmentPage() {
           <ShieldCheck className="w-4 h-4 text-purple-400" />
           <span>Équipe des Recruteurs ({countRecruiters})</span>
         </button>
+
+        <button
+          type="button"
+          onClick={() => {
+            setActiveTab("form-builder");
+            fetchFormFields();
+          }}
+          className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold transition-all ${
+            activeTab === "form-builder"
+              ? "btn-theme-primary shadow-md"
+              : "text-slate-400 hover:text-white hover:bg-slate-800"
+          }`}
+        >
+          <Sliders className="w-4 h-4 text-purple-400" />
+          <span>Questions & Formulaire ({formFields.length})</span>
+        </button>
       </div>
 
       {/* =====================================================================
@@ -940,6 +1145,208 @@ export default function RecruitmentPage() {
       )}
 
       {/* =====================================================================
+          TAB 3: CONFIGURATION DU FORMULAIRE DE RECRUTEMENT
+          ===================================================================== */}
+      {activeTab === "form-builder" && (
+        <div className="space-y-4 animate-fade-in">
+          <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-950/40 via-indigo-950/30 to-purple-950/40 border border-purple-800/40 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <h2 className="text-sm font-bold text-white flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-purple-400" />
+                <span>Gestion des Questions & Champs du Formulaire</span>
+              </h2>
+              <p className="text-xs text-slate-300 mt-0.5">
+                Ajoutez, modifiez ou réorganisez les questions posées aux candidats sur le formulaire public <code>/recruitment/apply</code>.
+              </p>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <Link
+                href="/recruitment/apply"
+                target="_blank"
+                className="px-3 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 border border-slate-700 text-slate-200 text-xs font-bold flex items-center gap-1.5 transition-colors"
+                title="Visualiser le formulaire tel que vu par les citoyens"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                <span>Prévisualiser</span>
+              </Link>
+
+              <button
+                type="button"
+                onClick={handleOpenCreateField}
+                className="px-3.5 py-2 rounded-xl btn-theme-primary text-xs font-black uppercase tracking-wider flex items-center gap-1.5 shadow-lg"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Ajouter un champ</span>
+              </button>
+            </div>
+          </div>
+
+          {loadingFields ? (
+            <div className="p-8 text-center text-xs text-slate-400">
+              Chargement des champs du formulaire...
+            </div>
+          ) : formFields.length === 0 ? (
+            <div className="p-12 text-center police-card rounded-2xl border border-slate-800 space-y-3">
+              <FileText className="w-10 h-10 text-slate-600 mx-auto" />
+              <div className="text-sm font-bold text-white">Aucun champ personnalisé</div>
+              <p className="text-xs text-slate-400 max-w-sm mx-auto">
+                Cliquez sur "Ajouter un champ" pour créer les questions de votre processus de sélection.
+              </p>
+              <button
+                type="button"
+                onClick={handleOpenCreateField}
+                className="px-4 py-2 rounded-xl btn-theme-primary text-xs font-bold"
+              >
+                ➕ Créer une première question
+              </button>
+            </div>
+          ) : (
+            <div className="police-card rounded-2xl border border-slate-800 overflow-hidden">
+              <div className="overflow-x-auto">
+                <table className="w-full text-left text-xs">
+                  <thead>
+                    <tr className="border-b border-slate-800 bg-[#090b17] text-slate-400 font-bold uppercase tracking-wider text-[10px]">
+                      <th className="p-3.5 text-center w-20">Ordre</th>
+                      <th className="p-3.5">Intitulé de la Question</th>
+                      <th className="p-3.5">Type de Saisie</th>
+                      <th className="p-3.5 text-center">Obligatoire</th>
+                      <th className="p-3.5 text-center">Affichage</th>
+                      <th className="p-3.5 text-right">Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-800/60">
+                    {formFields.map((field, idx) => {
+                      const typeLabels: Record<string, string> = {
+                        text: "Texte court",
+                        textarea: "Paragraphe / Multiligne",
+                        number: "Nombre",
+                        select: "Menu déroulant",
+                        radio: "Choix unique (Radio)",
+                        checkbox: "Case à cocher",
+                      };
+
+                      return (
+                        <tr key={field.id} className="hover:bg-slate-900/40 transition-colors">
+                          {/* Order & Reordering buttons */}
+                          <td className="p-3.5 text-center">
+                            <div className="flex items-center justify-center gap-1.5">
+                              <span className="font-mono text-slate-400 text-[11px] font-bold">
+                                #{idx + 1}
+                              </span>
+                              <div className="flex flex-col">
+                                <button
+                                  type="button"
+                                  disabled={idx === 0}
+                                  onClick={() => handleMoveField(field, "up")}
+                                  className="p-0.5 text-slate-500 hover:text-white disabled:opacity-20 transition-colors"
+                                  title="Monter la question"
+                                >
+                                  <ArrowUp className="w-3 h-3" />
+                                </button>
+                                <button
+                                  type="button"
+                                  disabled={idx === formFields.length - 1}
+                                  onClick={() => handleMoveField(field, "down")}
+                                  className="p-0.5 text-slate-500 hover:text-white disabled:opacity-20 transition-colors"
+                                  title="Descendre la question"
+                                >
+                                  <ArrowDown className="w-3 h-3" />
+                                </button>
+                              </div>
+                            </div>
+                          </td>
+
+                          {/* Question details */}
+                          <td className="p-3.5">
+                            <div className="font-bold text-white text-xs">{field.label}</div>
+                            {field.placeholder && (
+                              <div className="text-[11px] text-slate-400 italic">
+                                Indication : "{field.placeholder}"
+                              </div>
+                            )}
+                            {field.helpText && (
+                              <div className="text-[10px] text-purple-400/90 mt-0.5">
+                                Aide : {field.helpText}
+                              </div>
+                            )}
+                            {field.options && (
+                              <div className="text-[10px] text-slate-400 font-mono mt-0.5">
+                                Choix : [{field.options}]
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Type badge */}
+                          <td className="p-3.5">
+                            <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold uppercase tracking-wider bg-slate-800 text-slate-300 border border-slate-700">
+                              {typeLabels[field.type] || field.type}
+                            </span>
+                          </td>
+
+                          {/* Required badge */}
+                          <td className="p-3.5 text-center">
+                            {field.required ? (
+                              <span className="px-2 py-0.5 rounded text-[10px] font-bold uppercase tracking-wider bg-purple-950 text-purple-300 border border-purple-700">
+                                Obligatoire
+                              </span>
+                            ) : (
+                              <span className="text-[10px] text-slate-500 font-semibold">
+                                Facultatif
+                              </span>
+                            )}
+                          </td>
+
+                          {/* Enabled toggle */}
+                          <td className="p-3.5 text-center">
+                            <button
+                              type="button"
+                              onClick={() => handleToggleFieldEnabled(field)}
+                              className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all inline-flex items-center gap-1 ${
+                                field.enabled
+                                  ? "bg-emerald-950 text-emerald-300 border border-emerald-600/70"
+                                  : "bg-slate-800 text-slate-500 border border-slate-700"
+                              }`}
+                              title={field.enabled ? "Cliquez pour désactiver ce champ" : "Cliquez pour activer ce champ"}
+                            >
+                              {field.enabled ? <Eye className="w-3 h-3" /> : <EyeOff className="w-3 h-3" />}
+                              <span>{field.enabled ? "Actif" : "Masqué"}</span>
+                            </button>
+                          </td>
+
+                          {/* Actions */}
+                          <td className="p-3.5 text-right">
+                            <div className="flex items-center justify-end gap-1.5">
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEditField(field)}
+                                className="p-1.5 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white transition-colors"
+                                title="Modifier la question"
+                              >
+                                <Edit className="w-3.5 h-3.5" />
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteField(field.id, field.label)}
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-red-400 hover:bg-red-950/30 transition-colors"
+                                title="Supprimer la question"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* =====================================================================
           MODAL 1: CRÉER UNE NOUVELLE CANDIDATURE (MANUELLE)
           ===================================================================== */}
       {showCreateModal && (
@@ -1135,6 +1542,66 @@ export default function RecruitmentPage() {
                   <strong>Motivation :</strong> {selectedCandidate.motivation}
                 </div>
               )}
+
+              {/* Dynamic questionnaire responses */}
+              {(() => {
+                let answersList: Array<{ label: string; value: any; type?: string }> = [];
+                if (selectedCandidate.customAnswers) {
+                  try {
+                    const parsed =
+                      typeof selectedCandidate.customAnswers === "string"
+                        ? JSON.parse(selectedCandidate.customAnswers)
+                        : selectedCandidate.customAnswers;
+                    if (Array.isArray(parsed)) {
+                      answersList = parsed;
+                    } else if (typeof parsed === "object" && parsed !== null) {
+                      answersList = Object.values(parsed);
+                    }
+                  } catch (e) {
+                    console.error("Erreur de parsing des réponses :", e);
+                  }
+                }
+
+                if (answersList.length > 0) {
+                  return (
+                    <div className="space-y-2 pt-2.5 border-t border-slate-800">
+                      <div className="text-[11px] font-bold text-purple-300 uppercase tracking-wider flex items-center gap-1.5">
+                        <FileText className="w-3.5 h-3.5 text-purple-400" />
+                        <span>Réponses au Questionnaire de Recrutement ({answersList.length})</span>
+                      </div>
+                      <div className="space-y-2">
+                        {answersList.map((item, idx) => (
+                          <div
+                            key={idx}
+                            className="p-2.5 rounded-xl bg-slate-950/70 border border-slate-800/90 space-y-1"
+                          >
+                            <div className="text-[11px] font-semibold text-slate-300 flex items-center justify-between">
+                              <span>{item.label}</span>
+                              {item.type && (
+                                <span className="text-[9px] px-1.5 py-0.5 rounded bg-slate-800 text-slate-400 font-mono">
+                                  {item.type}
+                                </span>
+                              )}
+                            </div>
+                            <div className="text-xs text-white whitespace-pre-wrap leading-relaxed font-medium">
+                              {item.value === true ? (
+                                <span className="text-emerald-400 font-bold">✅ Oui / Confirmé</span>
+                              ) : item.value === false ? (
+                                <span className="text-rose-400 font-bold">❌ Non</span>
+                              ) : item.value ? (
+                                String(item.value)
+                              ) : (
+                                <span className="text-slate-500 italic">Non renseigné</span>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
             </div>
 
             {/* Discord Role & Notification Quick Banner */}
@@ -1258,6 +1725,156 @@ export default function RecruitmentPage() {
               </div>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* =====================================================================
+          MODAL 3: CRÉER / MODIFIER UNE QUESTION DU FORMULAIRE
+          ===================================================================== */}
+      {showFieldModal && (
+        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
+          <form
+            onSubmit={handleSaveField}
+            className="police-card w-full max-w-lg p-6 rounded-2xl border border-purple-500/40 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto animate-fade-in"
+          >
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+              <h3 className="text-base font-black text-white flex items-center gap-2">
+                <Sliders className="w-4 h-4 text-purple-400" />
+                <span>{editingField ? "Modifier la Question" : "Ajouter une Question au Formulaire"}</span>
+              </h3>
+              <button
+                type="button"
+                onClick={() => setShowFieldModal(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-300">
+                Intitulé de la question (Label) *
+              </label>
+              <input
+                type="text"
+                required
+                value={fieldFormData.label}
+                onChange={(e) => setFieldFormData({ ...fieldFormData, label: e.target.value })}
+                placeholder="Ex: Avez-vous une expérience en tir ou conduite d'urgence ?"
+                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-300">
+                Type de réponse attendu *
+              </label>
+              <select
+                value={fieldFormData.type}
+                onChange={(e) => setFieldFormData({ ...fieldFormData, type: e.target.value })}
+                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-purple-500 font-semibold"
+              >
+                <option value="text">Texte court (1 ligne)</option>
+                <option value="textarea">Paragraphe / Texte long (plusieurs lignes)</option>
+                <option value="number">Nombre (Ex: Heures de jeu, âge...)</option>
+                <option value="select">Menu déroulant (Choix dans une liste)</option>
+                <option value="radio">Choix unique (Boutons radio)</option>
+                <option value="checkbox">Case à cocher (Validation / Confirmation)</option>
+              </select>
+            </div>
+
+            {/* Options if select or radio */}
+            {(fieldFormData.type === "select" || fieldFormData.type === "radio") && (
+              <div className="space-y-1 p-3 rounded-xl bg-purple-950/20 border border-purple-800/30">
+                <label className="text-xs font-semibold text-purple-200">
+                  Options de choix (séparées par une virgule) *
+                </label>
+                <input
+                  type="text"
+                  required
+                  value={fieldFormData.options}
+                  onChange={(e) => setFieldFormData({ ...fieldFormData, options: e.target.value })}
+                  placeholder="Ex: Oui, Non, En cours de passage"
+                  className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                />
+                <p className="text-[10px] text-slate-400">
+                  Chaque élément séparé par une virgule deviendra un choix pour le candidat.
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-300">
+                Texte indicatif (Placeholder / Exemple grisé)
+              </label>
+              <input
+                type="text"
+                value={fieldFormData.placeholder}
+                onChange={(e) => setFieldFormData({ ...fieldFormData, placeholder: e.target.value })}
+                placeholder="Ex: Détaillez vos disponibilités ou vos motivations..."
+                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-slate-300">
+                Consigne ou aide affichée sous la question (facultatif)
+              </label>
+              <input
+                type="text"
+                value={fieldFormData.helpText}
+                onChange={(e) => setFieldFormData({ ...fieldFormData, helpText: e.target.value })}
+                placeholder="Ex: Une vérification sera faite auprès du procureur."
+                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-3 pt-2">
+              <label className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer hover:bg-slate-800/60 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={fieldFormData.required}
+                  onChange={(e) => setFieldFormData({ ...fieldFormData, required: e.target.checked })}
+                  className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-700 bg-slate-800"
+                />
+                <span className="text-xs font-bold text-slate-200">Question Obligatoire</span>
+              </label>
+
+              <label className="flex items-center gap-2.5 p-3 rounded-xl bg-slate-900 border border-slate-800 cursor-pointer hover:bg-slate-800/60 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={fieldFormData.enabled}
+                  onChange={(e) => setFieldFormData({ ...fieldFormData, enabled: e.target.checked })}
+                  className="w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-700 bg-slate-800"
+                />
+                <span className="text-xs font-bold text-slate-200">Actif sur le formulaire</span>
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-slate-800">
+              <button
+                type="button"
+                onClick={() => setShowFieldModal(false)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs font-bold text-white transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                type="submit"
+                disabled={savingField}
+                className="px-5 py-2 rounded-xl btn-theme-primary text-xs font-black uppercase tracking-wider shadow-lg disabled:opacity-50 flex items-center gap-1.5"
+              >
+                <Save className="w-4 h-4" />
+                <span>
+                  {savingField
+                    ? "Enregistrement..."
+                    : editingField
+                    ? "Sauvegarder"
+                    : "Créer la question"}
+                </span>
+              </button>
+            </div>
+          </form>
         </div>
       )}
     </div>

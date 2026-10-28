@@ -272,6 +272,7 @@ model RecruitmentCandidate {
   availability       String?
   motivation         String?
   experience         String?
+  customAnswers      String?   // JSON string storing answers to form fields: { [fieldIdOrName: string]: any }
   status             String    @default("En attente") // En attente, Entretien prévu, Accepté, Refusé
   interviewDate      DateTime?
   interviewNotes     String?
@@ -282,4 +283,20 @@ model RecruitmentCandidate {
   recruiter          Officer?  @relation(fields: [recruiterId], references: [id], onDelete: SetNull)
   createdAt          DateTime  @default(now())
   updatedAt          DateTime  @updatedAt
+}
+
+model RecruitmentFormField {
+  id          String   @id @default(cuid())
+  label       String   // Intitulé de la question
+  name        String   // Clé d'identification unique
+  type        String   @default("text") // text, textarea, number, select, radio, checkbox
+  placeholder String?
+  options     String?  // Options pour select/radio (séparées par des virgules)
+  helpText    String?  // Description ou consigne d'aide sous le champ
+  required    Boolean  @default(false)
+  orderIndex  Int      @default(0)
+  enabled     Boolean  @default(true)
+  isSystem    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

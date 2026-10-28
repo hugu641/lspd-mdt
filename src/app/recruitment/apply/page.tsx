@@ -8,8 +8,6 @@ import {
   CheckCircle,
   AlertTriangle,
   Bot,
-  ExternalLink,
-  Phone,
   Calendar,
   Send,
   FileCheck,
@@ -18,9 +16,29 @@ import {
   HelpCircle,
   Sparkles,
   ArrowRight,
+  Loader2,
+  FileText,
+  Phone,
 } from "lucide-react";
 
+interface FormField {
+  id: string;
+  name: string;
+  label: string;
+  type: string; // text, textarea, number, select, radio, checkbox
+  placeholder?: string | null;
+  helpText?: string | null;
+  options?: string | null;
+  required: boolean;
+  orderIndex: number;
+  enabled: boolean;
+}
+
 export default function CandidateApplicationPage() {
+  const [fields, setFields] = useState<FormField[]>([]);
+  const [loadingFields, setLoadingFields] = useState(true);
+
+  // Core Identity State
   const [formData, setFormData] = useState({
     firstName: "",
     lastName: "",
@@ -29,12 +47,11 @@ export default function CandidateApplicationPage() {
     discordTag: "",
     discordId: "",
     discordAvatar: "",
-    availability: "",
-    experience: "",
-    motivation: "",
-    hasRecord: "Non",
     honorPledge: false,
   });
+
+  // Dynamic answers keyed by field.id
+  const [answers, setAnswers] = useState<Record<string, any>>({});
 
   const [discordVerified, setDiscordVerified] = useState(false);
   const [isOnGuild, setIsOnGuild] = useState<boolean | null>(null);
@@ -42,6 +59,39 @@ export default function CandidateApplicationPage() {
 
   const [submitting, setSubmitting] = useState(false);
   const [submittedCandidate, setSubmittedCandidate] = useState<any | null>(null);
+
+  // Load configured fields
+  useEffect(() => {
+    async function fetchFields() {
+      try {
+        const res = await fetch("/api/recruitment/fields");
+        if (res.ok) {
+          const data: FormField[] = await res.json();
+          const activeFields = data.filter((f) => f.enabled);
+          setFields(activeFields);
+
+          // Initialize answer defaults
+          const initialAnswers: Record<string, any> = {};
+          activeFields.forEach((f) => {
+            if (f.type === "checkbox") {
+              initialAnswers[f.id] = false;
+            } else if (f.type === "radio" && f.options) {
+              const opts = f.options.split(",").map((s) => s.trim()).filter(Boolean);
+              initialAnswers[f.id] = opts[0] || "";
+            } else {
+              initialAnswers[f.id] = "";
+            }
+          });
+          setAnswers(initialAnswers);
+        }
+      } catch (err) {
+        console.error("Erreur lors de la récupération des champs :", err);
+      } finally {
+        setLoadingFields(false);
+      }
+    }
+    fetchFields();
+  }, []);
 
   // Parse query params for Discord OAuth return
   useEffect(() => {
@@ -71,12 +121,40 @@ export default function CandidateApplicationPage() {
     }
   }, []);
 
+  const handleAnswerChange = (fieldId: string, value: any) => {
+    setAnswers((prev) => ({
+      ...prev,
+      [fieldId]: value,
+    }));
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.firstName.trim() || !formData.lastName.trim()) {
       alert("Veuillez renseigner votre nom et prénom in-game.");
       return;
+    }
+
+    if (!formData.phone.trim()) {
+      alert("Veuillez renseigner votre numéro de téléphone in-game.");
+      return;
+    }
+
+    // Validate required dynamic fields
+    for (const field of fields) {
+      if (field.required) {
+        const val = answers[field.id];
+        if (
+          val === undefined ||
+          val === null ||
+          (typeof val === "string" && !val.trim()) ||
+          (field.type === "checkbox" && val !== true)
+        ) {
+          alert(`Le champ obligatoire "${field.label}" doit être renseigné.`);
+          return;
+        }
+      }
     }
 
     if (!formData.honorPledge) {
@@ -86,6 +164,25 @@ export default function CandidateApplicationPage() {
 
     setSubmitting(true);
     try {
+      // Build structured answers list
+      const customAnswersPayload = fields.map((f) => ({
+        id: f.id,
+        name: f.name,
+        label: f.label,
+        type: f.type,
+        value: answers[f.id] !== undefined ? answers[f.id] : null,
+      }));
+
+      // Extract convenient standard columns if matched by name
+      const findAnswerByName = (name: string) => {
+        const f = fields.find((item) => item.name.toLowerCase() === name.toLowerCase());
+        return f && answers[f.id] ? String(answers[f.id]).trim() : null;
+      };
+
+      const availability = findAnswerByName("availability");
+      const motivation = findAnswerByName("motivation");
+      const experience = findAnswerByName("experience");
+
       const res = await fetch("/api/recruitment/candidates", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -97,9 +194,10 @@ export default function CandidateApplicationPage() {
           discordTag: formData.discordTag.trim() || null,
           discordId: formData.discordId.trim() || null,
           discordAvatar: formData.discordAvatar.trim() || null,
-          availability: formData.availability.trim() || null,
-          experience: formData.experience.trim() || null,
-          motivation: formData.motivation.trim() || null,
+          availability: availability,
+          motivation: motivation,
+          experience: experience,
+          customAnswers: customAnswersPayload,
           status: "En attente",
         }),
       });
@@ -135,7 +233,7 @@ export default function CandidateApplicationPage() {
             </div>
             <h1 className="text-2xl font-black text-white">Candidature Enregistrée</h1>
             <p className="text-xs text-slate-300 leading-relaxed max-w-md mx-auto">
-              Merci <strong>{submittedCandidate.firstName} {submittedCandidate.lastName}</strong>. Votre candidature au poste de Cadet a été transmise à la Division du Recrutement du LSPD.
+              Merci <strong>{submittedCandidate.firstName} {submittedCandidate.lastName}</strong>. Votre dossier a été transmis à la Division du Recrutement du LSPD.
             </p>
           </div>
 
@@ -159,11 +257,11 @@ export default function CandidateApplicationPage() {
               <span>Prochaines étapes de votre recrutement :</span>
             </div>
             <p className="text-slate-300 leading-relaxed text-[11px]">
-              1. Les officiers recruteurs examineront votre dossier dans les meilleurs délais.
+              1. Les officiers recruteurs examineront votre candidature dans les meilleurs délais.
               <br />
-              2. Si votre profil est retenu, <strong>notre Bot vous enverra un Message Privé officiel sur Discord</strong> et vous attribuera automatiquement le rôle d'accès aux salons de recrutement.
+              2. Si votre dossier est retenu, <strong>notre bot Discord vous attribuera automatiquement le rôle d'accès aux salons d'entretien</strong> et vous recevrez un MP officiel.
               <br />
-              3. Gardez vos messages privés ouverts sur Discord et surveillez vos notifications !
+              3. Vérifiez régulièrement vos messages privés sur Discord !
             </p>
           </div>
 
@@ -179,10 +277,6 @@ export default function CandidateApplicationPage() {
                   discordTag: "",
                   discordId: "",
                   discordAvatar: "",
-                  availability: "",
-                  experience: "",
-                  motivation: "",
-                  hasRecord: "Non",
                   honorPledge: false,
                 });
                 setDiscordVerified(false);
@@ -238,7 +332,7 @@ export default function CandidateApplicationPage() {
               <div className="flex items-center gap-2">
                 <Bot className="w-5 h-5 text-indigo-400" />
                 <h2 className="text-sm font-black text-white uppercase tracking-wider">
-                  1. Vérification Discord (Obligatoire pour rôle & notification)
+                  1. Vérification Discord (Recommandée pour rôle & notification)
                 </h2>
               </div>
 
@@ -297,7 +391,7 @@ export default function CandidateApplicationPage() {
                   <span>Vérifier mon compte Discord en 1 clic</span>
                 </a>
 
-                {/* Manual Fallback if OAuth fails or blocked */}
+                {/* Saisie manuelle si besoin */}
                 <div className="text-center">
                   <span className="text-[10px] text-slate-500 uppercase tracking-wider font-semibold">
                     Ou saisie manuelle si nécessaire
@@ -386,79 +480,178 @@ export default function CandidateApplicationPage() {
           </div>
 
           {/* =================================================================
-              SECTION 3: DISPONIBILITÉS & EXPÉRIENCES
+              SECTION 3: QUESTIONS DU FORMULAIRE (CONFIGURÉES PAR LES RECRUTEURS)
               ================================================================= */}
-          <div className="police-card p-6 rounded-2xl border border-slate-800 space-y-4">
-            <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-              <Calendar className="w-4 h-4 text-purple-400" />
-              <span>3. Disponibilités & Expériences</span>
-            </h2>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-300">
-                Vos Disponibilités (Horaires de jeu habituels, jours de présence)
-              </label>
-              <input
-                type="text"
-                value={formData.availability}
-                onChange={(e) => setFormData({ ...formData, availability: e.target.value })}
-                placeholder="Ex: En soirée de 20h à 00h en semaine, disponible tout le week-end..."
-                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
-              />
+          <div className="police-card p-6 rounded-2xl border border-slate-800 space-y-5">
+            <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+              <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
+                <FileCheck className="w-4 h-4 text-purple-400" />
+                <span>3. Questionnaire & Profil du Candidat</span>
+              </h2>
+              <span className="text-[10px] font-mono text-slate-500 uppercase">
+                {fields.length} question{fields.length > 1 ? "s" : ""}
+              </span>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-300">
-                Expériences préalables (Services de police, sécurité, autres métiers légaux)
-              </label>
-              <textarea
-                rows={3}
-                value={formData.experience}
-                onChange={(e) => setFormData({ ...formData, experience: e.target.value })}
-                placeholder="Détaillez vos expériences passées (BCSO, SASP, EMS, convoyeur de fonds, entreprise privée...)"
-                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
-              />
-            </div>
+            {loadingFields ? (
+              <div className="py-8 text-center text-slate-400 text-xs flex items-center justify-center gap-2">
+                <Loader2 className="w-4 h-4 animate-spin text-purple-400" />
+                <span>Chargement du formulaire...</span>
+              </div>
+            ) : fields.length === 0 ? (
+              <div className="py-6 text-center text-slate-500 text-xs">
+                Aucune question additionnelle configurée.
+              </div>
+            ) : (
+              <div className="space-y-5">
+                {fields.map((field) => {
+                  const currentValue = answers[field.id];
+
+                  return (
+                    <div key={field.id} className="space-y-1.5 animate-fade-in">
+                      <div className="flex items-center justify-between gap-2">
+                        <label className="text-xs font-semibold text-slate-200">
+                          {field.label} {field.required && <span className="text-purple-400 font-bold">*</span>}
+                        </label>
+                        {field.required ? (
+                          <span className="text-[10px] text-purple-400/80 font-mono">Obligatoire</span>
+                        ) : (
+                          <span className="text-[10px] text-slate-500 font-mono">Facultatif</span>
+                        )}
+                      </div>
+
+                      {field.helpText && (
+                        <p className="text-[11px] text-slate-400 leading-relaxed">
+                          {field.helpText}
+                        </p>
+                      )}
+
+                      {/* TEXT INPUT */}
+                      {field.type === "text" && (
+                        <input
+                          type="text"
+                          required={field.required}
+                          value={currentValue ?? ""}
+                          onChange={(e) => handleAnswerChange(field.id, e.target.value)}
+                          placeholder={field.placeholder || "Votre réponse..."}
+                          className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                        />
+                      )}
+
+                      {/* TEXTAREA INPUT */}
+                      {field.type === "textarea" && (
+                        <textarea
+                          rows={4}
+                          required={field.required}
+                          value={currentValue ?? ""}
+                          onChange={(e) => handleAnswerChange(field.id, e.target.value)}
+                          placeholder={field.placeholder || "Détaillez votre réponse ici..."}
+                          className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 leading-relaxed"
+                        />
+                      )}
+
+                      {/* NUMBER INPUT */}
+                      {field.type === "number" && (
+                        <input
+                          type="number"
+                          required={field.required}
+                          value={currentValue ?? ""}
+                          onChange={(e) => handleAnswerChange(field.id, e.target.value)}
+                          placeholder={field.placeholder || "0"}
+                          className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
+                        />
+                      )}
+
+                      {/* SELECT DROPDOWN */}
+                      {field.type === "select" && (
+                        <select
+                          required={field.required}
+                          value={currentValue ?? ""}
+                          onChange={(e) => handleAnswerChange(field.id, e.target.value)}
+                          className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-purple-500 font-medium"
+                        >
+                          <option value="">
+                            {field.placeholder || "-- Sélectionnez une option --"}
+                          </option>
+                          {field.options
+                            ?.split(",")
+                            .map((opt) => opt.trim())
+                            .filter(Boolean)
+                            .map((opt) => (
+                              <option key={opt} value={opt}>
+                                {opt}
+                              </option>
+                            ))}
+                        </select>
+                      )}
+
+                      {/* RADIO GROUP */}
+                      {field.type === "radio" && (
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 pt-1">
+                          {field.options
+                            ?.split(",")
+                            .map((opt) => opt.trim())
+                            .filter(Boolean)
+                            .map((opt) => {
+                              const isSelected = currentValue === opt;
+                              return (
+                                <button
+                                  key={opt}
+                                  type="button"
+                                  onClick={() => handleAnswerChange(field.id, opt)}
+                                  className={`p-3 rounded-xl border text-left text-xs font-semibold transition-all flex items-center justify-between ${
+                                    isSelected
+                                      ? "bg-purple-950/80 border-purple-500 text-purple-200 shadow-md"
+                                      : "bg-slate-900 border-slate-800 text-slate-300 hover:border-slate-700"
+                                  }`}
+                                >
+                                  <span>{opt}</span>
+                                  <div
+                                    className={`w-4 h-4 rounded-full border flex items-center justify-center ${
+                                      isSelected
+                                        ? "border-purple-400 bg-purple-600"
+                                        : "border-slate-600 bg-slate-800"
+                                    }`}
+                                  >
+                                    {isSelected && <div className="w-1.5 h-1.5 rounded-full bg-white" />}
+                                  </div>
+                                </button>
+                              );
+                            })}
+                        </div>
+                      )}
+
+                      {/* CHECKBOX */}
+                      {field.type === "checkbox" && (
+                        <label className="flex items-start gap-3 p-3 rounded-xl bg-slate-900/60 border border-slate-800 cursor-pointer hover:bg-slate-900 transition-colors">
+                          <input
+                            type="checkbox"
+                            required={field.required}
+                            checked={Boolean(currentValue)}
+                            onChange={(e) => handleAnswerChange(field.id, e.target.checked)}
+                            className="mt-0.5 w-4 h-4 rounded text-purple-600 focus:ring-purple-500 border-slate-700 bg-slate-800"
+                          />
+                          <span className="text-xs text-slate-300 font-medium leading-relaxed">
+                            {field.placeholder || "J'accepte et confirme cette condition."}
+                          </span>
+                        </label>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
           </div>
 
           {/* =================================================================
-              SECTION 4: MOTIVATIONS & DÉCLARATION
+              SECTION 4: ENGAGEMENT SUR L'HONNEUR & ENVOI
               ================================================================= */}
           <div className="police-card p-6 rounded-2xl border border-slate-800 space-y-4">
             <h2 className="text-sm font-black text-white uppercase tracking-wider flex items-center gap-2">
-              <FileCheck className="w-4 h-4 text-purple-400" />
-              <span>4. Motivations & Engagement</span>
+              <Shield className="w-4 h-4 text-purple-400" />
+              <span>4. Engagement & Validation</span>
             </h2>
 
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-300">
-                Pourquoi souhaitez-vous rejoindre le Los Santos Police Department ? *
-              </label>
-              <textarea
-                rows={4}
-                required
-                value={formData.motivation}
-                onChange={(e) => setFormData({ ...formData, motivation: e.target.value })}
-                placeholder="Expliquez vos motivations, ce qui vous attire dans le service et ce que vous souhaitez apporter à la brigade..."
-                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-purple-500"
-              />
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-semibold text-slate-300">
-                Avez-vous déjà eu des condamnations au casier judiciaire ?
-              </label>
-              <select
-                value={formData.hasRecord}
-                onChange={(e) => setFormData({ ...formData, hasRecord: e.target.value })}
-                className="w-full px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white focus:outline-none focus:border-purple-500 font-semibold"
-              >
-                <option value="Non">Non, casier judiciaire totalement vierge</option>
-                <option value="Oui">Oui, des antécédents anciens ou mineurs</option>
-              </select>
-            </div>
-
-            {/* Honor Pledge */}
             <label className="flex items-start gap-3 p-3.5 rounded-xl bg-slate-900/60 border border-slate-800 cursor-pointer hover:bg-slate-900 transition-colors">
               <input
                 type="checkbox"

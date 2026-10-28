@@ -20,6 +20,12 @@ export async function PATCH(
         ...(body.age !== undefined && { age: body.age ? parseInt(body.age) : null }),
         ...(body.motivation !== undefined && { motivation: body.motivation?.trim() || null }),
         ...(body.experience !== undefined && { experience: body.experience?.trim() || null }),
+        ...(body.customAnswers !== undefined && {
+          customAnswers:
+            typeof body.customAnswers === "string"
+              ? body.customAnswers
+              : JSON.stringify(body.customAnswers),
+        }),
         ...(body.status !== undefined && { status: body.status }),
         ...(body.interviewDate !== undefined && {
           interviewDate: body.interviewDate ? new Date(body.interviewDate) : null,

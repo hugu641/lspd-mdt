@@ -42,6 +42,11 @@ export async function POST(req: Request) {
         availability: body.availability?.trim() || null,
         motivation: body.motivation?.trim() || null,
         experience: body.experience?.trim() || null,
+        customAnswers: body.customAnswers
+          ? typeof body.customAnswers === "string"
+            ? body.customAnswers
+            : JSON.stringify(body.customAnswers)
+          : null,
         status: body.status || "En attente",
         interviewDate: body.interviewDate ? new Date(body.interviewDate) : null,
         interviewNotes: body.interviewNotes?.trim() || null,
