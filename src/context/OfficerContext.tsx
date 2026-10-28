@@ -28,6 +28,8 @@ export interface Officer {
   unitType: string;
   isInstructor: boolean;
   isAdmin: boolean;
+  discordId?: string | null;
+  discordTag?: string | null;
   badges?: OfficerBadge[];
 }
 

@@ -21,6 +21,8 @@ model Officer {
   unitType        String   @default("Lincoln") // Lincoln, Adam, Tango, Mary, Henry, David, Nora
   isInstructor    Boolean  @default(false)
   isAdmin         Boolean  @default(false)
+  discordId       String?  // ID Discord de l'agent (17-19 chiffres)
+  discordTag      String?  // Pseudo / Tag Discord (ex: hugu641)
   createdAt       DateTime @default(now())
 
   // Relations
@@ -237,4 +239,15 @@ model RadioCodeReference {
   title           String
   description     String?
   orderIndex      Int      @default(0)
+}
+
+model DiscordSetting {
+  id               String   @id @default("default")
+  botToken         String?
+  guildId          String?
+  welcomeChannelId String?
+  autoSyncRoles    Boolean  @default(true)
+  sendWelcomeDm    Boolean  @default(true)
+  roleMappings     String?  // JSON stringified role mapping { "Chief of Police": "role_id", ... }
+  updatedAt        DateTime @updatedAt
 }

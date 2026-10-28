@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
+import { getDiscordConfig, sendWelcomeDM, syncOfficerDiscordRoles } from "../../../lib/discord";
 
 export async function GET() {
   try {
@@ -23,6 +24,10 @@ export async function GET() {
 export async function POST(req: Request) {
   try {
     const body = await req.json();
+
+    const cleanDiscordId = body.discordId ? body.discordId.trim().replace(/[<@!>]/g, "") : null;
+    const cleanDiscordTag = body.discordTag ? body.discordTag.trim() : null;
+
     const officer = await prisma.officer.create({
       data: {
         badgeNumber: body.badgeNumber,
@@ -36,9 +41,57 @@ export async function POST(req: Request) {
         unitType: body.unitType || "Lincoln",
         isInstructor: Boolean(body.isInstructor),
         isAdmin: Boolean(body.isAdmin),
+        discordId: cleanDiscordId,
+        discordTag: cleanDiscordTag,
       },
     });
-    return NextResponse.json(officer, { status: 201 });
+
+    // Discord Automated Actions: Welcome MP & Role Assignment
+    let discordNotificationResult = null;
+    let discordRoleResult = null;
+
+    if (cleanDiscordId) {
+      try {
+        const config = await getDiscordConfig();
+
+        // 1. Send Welcome MP
+        if (config.sendWelcomeDm && config.botToken) {
+          discordNotificationResult = await sendWelcomeDM({
+            name: officer.name,
+            badgeNumber: officer.badgeNumber,
+            rank: officer.rank,
+            callsign: officer.callsign,
+            unitType: officer.unitType,
+            department: officer.department,
+            phone: officer.phone,
+            discordId: cleanDiscordId,
+          });
+        }
+
+        // 2. Automatically assign Discord roles
+        if (config.autoSyncRoles && config.botToken && config.guildId) {
+          discordRoleResult = await syncOfficerDiscordRoles({
+            discordId: cleanDiscordId,
+            rank: officer.rank,
+            department: officer.department,
+            isInstructor: officer.isInstructor,
+          });
+        }
+      } catch (discordErr) {
+        console.error("Discord post-creation hook error:", discordErr);
+      }
+    }
+
+    return NextResponse.json(
+      {
+        ...officer,
+        discordIntegration: {
+          dm: discordNotificationResult,
+          roles: discordRoleResult,
+        },
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("POST officer error:", error);
     return NextResponse.json({ error: "Failed to create officer" }, { status: 500 });
