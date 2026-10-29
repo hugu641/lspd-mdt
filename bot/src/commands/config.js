@@ -14,7 +14,12 @@ const {
   addCustomCommand, 
   removeCustomCommand, 
   getCustomCommands,
-  setLoggingOption 
+  setLoggingOption,
+  getTicketCategories,
+  addTicketCategory,
+  removeTicketCategory,
+  getTicketSettings,
+  updateTicketSettings
 } = require('../utils/settingsManager');
 const { getWhitelist, addEntry, removeEntry } = require('../utils/whitelistManager');
 const { getSalaires, addOrUpdateGrade, removeGrade } = require('../utils/salairesManager');
@@ -54,6 +59,9 @@ function buildConfigDashboard(guild) {
   const textCmds = Object.keys(customCmds).filter(k => customCmds[k].type !== 'role_action');
   const rolePacks = Object.keys(customCmds).filter(k => customCmds[k].type === 'role_action');
 
+  const ticketCats = getTicketCategories();
+  const ticketKeys = Object.keys(ticketCats);
+
   const logDel = settings.logging?.messageDelete !== false ? '✅' : '❌';
   const logUpd = settings.logging?.messageUpdate !== false ? '✅' : '❌';
   const logCre = settings.logging?.messageCreate === true ? '✅' : '❌';
@@ -86,6 +94,13 @@ function buildConfigDashboard(guild) {
         name: '🛡️ Sécurité Anti-Pub',
         value: `**Statut :** \`3 strikes = BAN\`\n**Serveurs autorisés :** \`${whitelistCount}\``,
         inline: true
+      },
+      {
+        name: `🎫 Catégories de Tickets (${ticketKeys.length})`,
+        value: ticketKeys.length > 0 
+          ? ticketKeys.map(k => `${ticketCats[k].emoji || '🎫'} **${ticketCats[k].label}** *(Rôles: ${ticketCats[k].roles?.join(', ') || 'Tous'})*`).join('\n')
+          : '*Aucune catégorie configurée.*',
+        inline: false
       },
       {
         name: `🎭 Packs de Rôles Automatiques (${rolePacks.length})`,
@@ -133,6 +148,12 @@ function buildConfigDashboard(guild) {
   );
 
   const row2 = new ActionRowBuilder().addComponents(
+    new ButtonBuilder()
+      .setCustomId('cfg_btn_ticketcat')
+      .setLabel('Ajouter Ticket')
+      .setEmoji('🎫')
+      .setStyle(ButtonStyle.Primary),
+
     new ButtonBuilder()
       .setCustomId('cfg_btn_whitelist')
       .setLabel('Whitelist')
@@ -250,6 +271,35 @@ module.exports = {
         .addSubcommand(sub =>
           sub.setName('list')
             .setDescription('Afficher la grille salariale actuelle')
+        )
+    )
+    .addSubcommandGroup(group =>
+      group.setName('tickets')
+        .setDescription('Gérer les catégories de tickets et leurs permissions de rôles')
+        .addSubcommand(sub =>
+          sub.setName('add-cat')
+            .setDescription('Ajouter ou modifier une catégorie de ticket avec sélection de rôles')
+            .addStringOption(opt => opt.setName('nom').setDescription('Identifiant unique (ex: haute_hierarchie, plaintes)').setRequired(true))
+            .addStringOption(opt => opt.setName('label').setDescription('Nom affiché dans le menu déroulant').setRequired(true))
+            .addStringOption(opt => opt.setName('roles').setDescription('Rôles autorisés (ex: Marshal, Chief of the Police, Deputy)').setRequired(true))
+            .addStringOption(opt => opt.setName('emoji').setDescription('Emoji de la catégorie (ex: 🎖️, ⚖️, 📝)').setRequired(false))
+            .addStringOption(opt => opt.setName('description').setDescription('Description dans le menu').setRequired(false))
+            .addStringOption(opt => opt.setName('message').setDescription('Message d\'accueil RP personnalisé').setRequired(false))
+        )
+        .addSubcommand(sub =>
+          sub.setName('remove-cat')
+            .setDescription('Supprimer une catégorie de ticket')
+            .addStringOption(opt => opt.setName('nom').setDescription('Identifiant de la catégorie à supprimer').setRequired(true))
+        )
+        .addSubcommand(sub =>
+          sub.setName('list')
+            .setDescription('Lister toutes les catégories de tickets actives')
+        )
+        .addSubcommand(sub =>
+          sub.setName('settings')
+            .setDescription('Configurer le salon catégorie parent et les logs de tickets')
+            .addChannelOption(opt => opt.setName('categorie_parent').setDescription('Catégorie Discord où ranger les salons tickets').addChannelTypes(ChannelType.GuildCategory))
+            .addChannelOption(opt => opt.setName('salon_logs').setDescription('Salon de logs pour les transcripts et fermetures').addChannelTypes(ChannelType.GuildText))
         )
     ),
 
@@ -514,6 +564,84 @@ module.exports = {
         const { buildSalairesDetailsEmbed } = require('./salaires');
         const embed = buildSalairesDetailsEmbed();
         return interaction.reply({ embeds: [embed], ephemeral: true });
+      }
+    }
+
+    // 8. Groupe Tickets
+    if (group === 'tickets') {
+      if (sub === 'add-cat') {
+        const id = interaction.options.getString('nom');
+        const label = interaction.options.getString('label');
+        const rolesRaw = interaction.options.getString('roles');
+        const emoji = interaction.options.getString('emoji') || '🎫';
+        const desc = interaction.options.getString('description') || '';
+        const msg = interaction.options.getString('message') || '';
+
+        const roles = rolesRaw.split(/[,+]/).map(r => r.trim()).filter(Boolean);
+
+        try {
+          const cat = addTicketCategory(id, label, desc, emoji, roles, msg);
+          return interaction.reply({
+            content: `✅ **Catégorie de ticket enregistrée avec succès !**\n` +
+              `> ${cat.emoji} **${cat.label}** (\`${cat.id}\`)\n` +
+              `> 👥 Rôles autorisés : ${cat.roles.join(', ')}\n` +
+              `> 🚀 Tapez \`/post-tickets\` pour déployer ou actualiser le panneau !`,
+            ephemeral: true
+          });
+        } catch (err) {
+          return interaction.reply({ content: `❌ Erreur : ${err.message}`, ephemeral: true });
+        }
+      }
+
+      if (sub === 'remove-cat') {
+        const id = interaction.options.getString('nom');
+        const removed = removeTicketCategory(id);
+        return interaction.reply({
+          content: removed ? `✅ La catégorie de ticket \`${id}\` a été supprimée.` : `❌ Catégorie \`${id}\` introuvable.`,
+          ephemeral: true
+        });
+      }
+
+      if (sub === 'list') {
+        const cats = getTicketCategories();
+        const keys = Object.keys(cats);
+        if (keys.length === 0) {
+          return interaction.reply({ content: 'ℹ️ Aucune catégorie de ticket configurée.', ephemeral: true });
+        }
+
+        const embed = new EmbedBuilder()
+          .setTitle('🎫 CATÉGORIES DE TICKETS LSPD')
+          .setColor(0x0A2540)
+          .setDescription(keys.map(k => `• ${cats[k].emoji || '🎫'} **${cats[k].label}** (\`${cats[k].id}\`)\n  *Rôles autorisés :* ${cats[k].roles?.join(', ') || 'Tous'}\n  *Description :* ${cats[k].description || 'N/A'}`).join('\n\n'));
+
+        return interaction.reply({ embeds: [embed], ephemeral: true });
+      }
+
+      if (sub === 'settings') {
+        const parentCat = interaction.options.getChannel('categorie_parent');
+        const logsCh = interaction.options.getChannel('salon_logs');
+
+        const updates = [];
+        const newSettings = {};
+
+        if (parentCat) {
+          newSettings.categoryChannelId = parentCat.id;
+          updates.push(`• Catégorie parente des salons tickets : ${parentCat}`);
+        }
+        if (logsCh) {
+          newSettings.logChannelId = logsCh.id;
+          updates.push(`• Salon des logs/transcripts tickets : ${logsCh}`);
+        }
+
+        if (updates.length === 0) {
+          return interaction.reply({ content: '⚠️ Aucun paramètre spécifié.', ephemeral: true });
+        }
+
+        updateTicketSettings(newSettings);
+        return interaction.reply({
+          content: `✅ **Paramètres des tickets mis à jour :**\n${updates.join('\n')}`,
+          ephemeral: true
+        });
       }
     }
   }

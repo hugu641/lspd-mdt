@@ -22,10 +22,29 @@ Vous pouvez **absolument tout configurer directement depuis Discord**, sans touc
   * `/config whitelist add entree:<id_ou_lien>`
   * `/config whitelist remove entree:<id_ou_code>`
   * `/config whitelist list`
+* **Gestion du Système de Tickets :**
+  * `/config tickets add-cat nom:<id> label:<nom> roles:<roles> [emoji] [description]`
+  * `/config tickets remove-cat nom:<id>`
+  * `/config tickets list`
+  * `/config tickets settings [categorie_parent:#cat] [salon_logs:#logs]`
 
 ---
 
-### 2. 🎭 Créateur de Commandes & Packs de Rôles Automatiques (`/action` & `/cmd`)
+### 2. 🎫 Système de Tickets avec Menu Déroulant (`/post-tickets`)
+* **Déploiement du panneau :** `/post-tickets [salon]` affiche l'embed officiel avec un menu de sélection des catégories.
+* **Catégorie par défaut incluse :**
+  * **🎖️ Haute Hiérarchie** : Donne accès direct et exclusif aux rôles **Marshal**, **Chief of the Police**, **Assistance** et **Deputy**.
+* **Entièrement modulable :** Ajoutez d'autres catégories à volonté (Plaintes, Recrutement, RH, etc.) avec leurs propres rôles autorisés !
+* **Fonctionnalités des tickets :**
+  * ✋ **Prendre en charge** (`btn_ticket_claim`)
+  * 📑 **Génération automatique de Transcripts** (`btn_ticket_transcript`)
+  * 🔒 **Fermeture propre** (`btn_ticket_close`)
+  * 🔓 **Réouverture** (`btn_ticket_reopen`)
+  * 🗑️ **Suppression sécurisée avec compte à rebours et archivage** (`btn_ticket_delete`)
+
+---
+
+### 3. 🎭 Créateur de Commandes & Packs de Rôles Automatiques (`/action` & `/cmd`)
 Vous pouvez créer des commandes personnalisées qui **attribuent et retirent automatiquement une série de grades / rôles Discord à un membre** (ex: Rookie, Cadet, Officier, FTO, SWAT) !
 
 * **Créer un pack de rôles :**

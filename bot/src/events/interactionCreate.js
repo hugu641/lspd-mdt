@@ -56,8 +56,43 @@ module.exports = {
       return;
     }
 
-    // 3. Gestion des Boutons
+    // 3. Gestion des Menus Déroulants (String Select Menus)
+    if (interaction.isStringSelectMenu()) {
+      if (interaction.customId === 'select_ticket_category') {
+        const categoryId = interaction.values[0];
+        if (categoryId === 'none') {
+          return interaction.reply({ content: '⚠️ Aucune catégorie de ticket configurée.', ephemeral: true });
+        }
+        const { handleTicketCreate } = require('../utils/ticketManager');
+        return handleTicketCreate(interaction, categoryId);
+      }
+      return;
+    }
+
+    // 4. Gestion des Boutons
     if (interaction.isButton()) {
+      // Boutons Tickets
+      if (interaction.customId === 'btn_ticket_claim') {
+        const { handleTicketClaim } = require('../utils/ticketManager');
+        return handleTicketClaim(interaction);
+      }
+      if (interaction.customId === 'btn_ticket_close') {
+        const { handleTicketClose } = require('../utils/ticketManager');
+        return handleTicketClose(interaction);
+      }
+      if (interaction.customId === 'btn_ticket_reopen') {
+        const { handleTicketReopen } = require('../utils/ticketManager');
+        return handleTicketReopen(interaction);
+      }
+      if (interaction.customId === 'btn_ticket_transcript') {
+        const { handleTicketTranscript } = require('../utils/ticketManager');
+        return handleTicketTranscript(interaction);
+      }
+      if (interaction.customId === 'btn_ticket_delete') {
+        const { handleTicketDelete } = require('../utils/ticketManager');
+        return handleTicketDelete(interaction);
+      }
+
       // Bouton Salaires (pour tous les officiers)
       if (interaction.customId === 'btn_salaires') {
         const salairesEmbed = buildSalairesDetailsEmbed();
@@ -264,6 +299,57 @@ module.exports = {
         return interaction.showModal(modal);
       }
 
+      // Modal Nouvelle Catégorie de Ticket
+      if (interaction.customId === 'cfg_btn_ticketcat') {
+        const modal = new ModalBuilder()
+          .setCustomId('modal_cfg_ticketcat')
+          .setTitle('Créer Catégorie de Ticket');
+
+        const idInput = new TextInputBuilder()
+          .setCustomId('input_cat_id')
+          .setLabel('Identifiant unique (sans espace)')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('ex: plaintes, recrutement, rh')
+          .setRequired(true);
+
+        const labelInput = new TextInputBuilder()
+          .setCustomId('input_cat_label')
+          .setLabel('Nom affiché dans le menu déroulant')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('ex: Dépôt de Plainte')
+          .setRequired(true);
+
+        const emojiInput = new TextInputBuilder()
+          .setCustomId('input_cat_emoji')
+          .setLabel('Emoji')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('ex: ⚖️')
+          .setRequired(false);
+
+        const rolesInput = new TextInputBuilder()
+          .setCustomId('input_cat_roles')
+          .setLabel('Rôles ayant accès (séparés par virgule)')
+          .setStyle(TextInputStyle.Short)
+          .setPlaceholder('ex: Marshal, Chief of the Police, Deputy')
+          .setRequired(false);
+
+        const descInput = new TextInputBuilder()
+          .setCustomId('input_cat_desc')
+          .setLabel('Description')
+          .setStyle(TextInputStyle.Paragraph)
+          .setPlaceholder('ex: Plaintes citoyennes et signalements...')
+          .setRequired(false);
+
+        modal.addComponents(
+          new ActionRowBuilder().addComponents(idInput),
+          new ActionRowBuilder().addComponents(labelInput),
+          new ActionRowBuilder().addComponents(emojiInput),
+          new ActionRowBuilder().addComponents(rolesInput),
+          new ActionRowBuilder().addComponents(descInput)
+        );
+        return interaction.showModal(modal);
+      }
+
       // Aide Salons
       if (interaction.customId === 'cfg_btn_channels') {
         return interaction.reply({
@@ -350,6 +436,31 @@ module.exports = {
               `> 🎭 Nom : \`${pack.name}\`\n` +
               `> ➕ Rôles ajoutés : ${addRoleIds.map(id => `<@&${id}>`).join(', ')}\n` +
               `> 🚀 **Utilisation :** \`/action nom:${pack.name} membre:@Agent\``,
+            ephemeral: true
+          });
+        } catch (err) {
+          return interaction.reply({ content: `❌ Erreur : ${err.message}`, ephemeral: true });
+        }
+      }
+
+      // Sauvegarde Catégorie Ticket
+      if (interaction.customId === 'modal_cfg_ticketcat') {
+        const id = interaction.fields.getTextInputValue('input_cat_id');
+        const label = interaction.fields.getTextInputValue('input_cat_label');
+        const emoji = interaction.fields.getTextInputValue('input_cat_emoji') || '🎫';
+        const rolesRaw = interaction.fields.getTextInputValue('input_cat_roles') || '';
+        const desc = interaction.fields.getTextInputValue('input_cat_desc') || '';
+
+        const roles = rolesRaw.split(/[,+]/).map(r => r.trim()).filter(Boolean);
+        const { addTicketCategory } = require('../utils/settingsManager');
+
+        try {
+          const cat = addTicketCategory(id, label, desc, emoji, roles);
+          return interaction.reply({
+            content: `✅ **Catégorie de ticket créée avec succès !**\n` +
+              `> ${cat.emoji} **${cat.label}** (\`${cat.id}\`)\n` +
+              `> Rôles autorisés : ${cat.roles.length > 0 ? cat.roles.join(', ') : '*Tous*'}\n` +
+              `> Utilisez \`/post-tickets\` pour déployer ou mettre à jour le panneau !`,
             ephemeral: true
           });
         } catch (err) {

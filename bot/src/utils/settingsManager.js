@@ -50,6 +50,21 @@ const DEFAULT_SETTINGS = {
       response: "🎖️ **AFFECTATION ROOKIE :** L'agent {user} a reçu l'ensemble des paquetages et grades de **Cadet / Rookie** du LSPD !",
       description: 'Attribue automatiquement le pack de rôles Rookie / Cadet à un membre'
     }
+  },
+  ticketSettings: {
+    categoryChannelId: '',
+    logChannelId: '',
+    ticketCount: 0
+  },
+  ticketCategories: {
+    haute_hierarchie: {
+      id: 'haute_hierarchie',
+      label: 'Haute Hiérarchie',
+      description: 'Marshal, Chief of Police, Assistance & Deputy',
+      emoji: '🎖️',
+      roles: ['Marshal', 'Chief of the Police', 'Assistance', 'Deputy'],
+      welcomeMessage: 'Bienvenue dans votre salon privé avec le Haut Commandement de la LSPD.\nVeuillez exposer clairement votre demande ou rapport ci-dessous.'
+    }
   }
 };
 
@@ -66,7 +81,9 @@ function loadSettings() {
       ...parsed,
       channels: { ...DEFAULT_SETTINGS.channels, ...(parsed.channels || {}) },
       logging: { ...DEFAULT_SETTINGS.logging, ...(parsed.logging || {}) },
-      customCommands: { ...DEFAULT_SETTINGS.customCommands, ...(parsed.customCommands || {}) }
+      customCommands: { ...DEFAULT_SETTINGS.customCommands, ...(parsed.customCommands || {}) },
+      ticketSettings: { ...DEFAULT_SETTINGS.ticketSettings, ...(parsed.ticketSettings || {}) },
+      ticketCategories: { ...DEFAULT_SETTINGS.ticketCategories, ...(parsed.ticketCategories || {}) }
     };
   } catch (err) {
     console.error('Erreur chargement settings.json :', err);
@@ -159,6 +176,62 @@ function getCustomCommands() {
   return current.customCommands || {};
 }
 
+function getTicketCategories() {
+  const current = loadSettings();
+  return current.ticketCategories || {};
+}
+
+function addTicketCategory(id, label, description, emoji = '🎫', roles = [], welcomeMessage = '') {
+  const cleanId = id.toLowerCase().trim().replace(/[^a-z0-9_-]/g, '');
+  if (!cleanId) throw new Error('Identifiant de catégorie invalide.');
+
+  const current = loadSettings();
+  if (!current.ticketCategories) current.ticketCategories = {};
+
+  current.ticketCategories[cleanId] = {
+    id: cleanId,
+    label: label.trim(),
+    description: description ? description.trim() : `Demandes concernant ${label}`,
+    emoji: emoji.trim() || '🎫',
+    roles: Array.isArray(roles) ? roles : [],
+    welcomeMessage: welcomeMessage.trim() || `Bienvenue dans votre ticket **${label}**.\nUn membre de l'équipe va vous prendre en charge sous peu.`
+  };
+
+  saveSettings(current);
+  return current.ticketCategories[cleanId];
+}
+
+function removeTicketCategory(id) {
+  const cleanId = id.toLowerCase().trim();
+  const current = loadSettings();
+  if (current.ticketCategories && current.ticketCategories[cleanId]) {
+    delete current.ticketCategories[cleanId];
+    saveSettings(current);
+    return true;
+  }
+  return false;
+}
+
+function getTicketSettings() {
+  const current = loadSettings();
+  return current.ticketSettings || { categoryChannelId: '', logChannelId: '', ticketCount: 0 };
+}
+
+function updateTicketSettings(partial) {
+  const current = loadSettings();
+  current.ticketSettings = { ...current.ticketSettings, ...partial };
+  saveSettings(current);
+  return current.ticketSettings;
+}
+
+function incrementTicketCount() {
+  const current = loadSettings();
+  if (!current.ticketSettings) current.ticketSettings = { categoryChannelId: '', logChannelId: '', ticketCount: 0 };
+  current.ticketSettings.ticketCount = (current.ticketSettings.ticketCount || 0) + 1;
+  saveSettings(current);
+  return current.ticketSettings.ticketCount;
+}
+
 module.exports = {
   getSettings,
   saveSettings,
@@ -168,5 +241,11 @@ module.exports = {
   setMdtUrl,
   addCustomCommand,
   removeCustomCommand,
-  getCustomCommands
+  getCustomCommands,
+  getTicketCategories,
+  addTicketCategory,
+  removeTicketCategory,
+  getTicketSettings,
+  updateTicketSettings,
+  incrementTicketCount
 };
