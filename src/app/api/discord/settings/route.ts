@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
+import { canEditDiscordSettings } from "../../../../lib/discord";
 
 export async function GET() {
   try {
@@ -47,6 +48,10 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    if (!(await canEditDiscordSettings())) {
+      return NextResponse.json({ error: "Accès refusé : réservé au Haut Commandement." }, { status: 403 });
+    }
+
     const body = await req.json();
 
     const dataToUpdate: any = {};

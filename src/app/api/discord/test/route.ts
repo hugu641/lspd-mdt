@@ -1,8 +1,12 @@
 import { NextResponse } from "next/server";
-import { testDiscordConnection } from "../../../../lib/discord";
+import { testDiscordConnection, canEditDiscordSettings } from "../../../../lib/discord";
 
 export async function POST(req: Request) {
   try {
+    if (!(await canEditDiscordSettings())) {
+      return NextResponse.json({ success: false, error: "Accès refusé" }, { status: 403 });
+    }
+
     const body = await req.json().catch(() => ({}));
     const result = await testDiscordConnection(body.botToken, body.guildId);
 

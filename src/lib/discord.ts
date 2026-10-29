@@ -1,5 +1,8 @@
 import crypto from "crypto";
 import { prisma } from "./prisma";
+import { getSessionSecret } from "./sessionSecret";
+import { cookies } from "next/headers";
+import { isHighCommand } from "./ranks";
 
 export interface DiscordConfig {
   botToken?: string;
@@ -102,8 +105,6 @@ const DEFAULT_ALLOWED_ROLES = [
   "Agent",
   "Membre LSPD",
 ];
-
-const SESSION_SECRET = process.env.SESSION_SECRET || "lspd-mdt-secret-key-cyber-violet-2026";
 
 /**
  * Retrieve Discord Bot & OAuth settings (DB preferred, fallback to process.env)
@@ -509,7 +510,7 @@ export function createSessionToken(payload: {
 
   const jsonStr = JSON.stringify(data);
   const base64Data = Buffer.from(jsonStr).toString("base64url");
-  const signature = crypto.createHmac("sha256", SESSION_SECRET).update(base64Data).digest("base64url");
+  const signature = crypto.createHmac("sha256", getSessionSecret()).update(base64Data).digest("base64url");
 
   return `${base64Data}.${signature}`;
 }
@@ -524,7 +525,7 @@ export function verifySessionToken(token: string) {
     if (parts.length !== 2) return null;
 
     const [base64Data, signature] = parts;
-    const expectedSig = crypto.createHmac("sha256", SESSION_SECRET).update(base64Data).digest("base64url");
+    const expectedSig = crypto.createHmac("sha256", getSessionSecret()).update(base64Data).digest("base64url");
 
     if (signature !== expectedSig) return null;
 
@@ -1841,3 +1842,19 @@ export async function syncAllOfficersFromDiscord() {
   }
 }
 
+
+/**
+ * Discord settings may be edited by High Command / admins, or by anyone during
+ * first setup (no OAuth Client ID yet, so nobody can log in to become admin).
+ */
+export async function canEditDiscordSettings(): Promise<boolean> {
+  const config = await getDiscordConfig();
+  if (!config.clientId) return true;
+
+  const token = cookies().get("lspd_session")?.value;
+  const session = token ? verifySessionToken(token) : null;
+  if (!session) return false;
+
+  const officer = await prisma.officer.findUnique({ where: { id: session.officerId } });
+  return isHighCommand(officer);
+}
