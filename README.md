@@ -8,7 +8,7 @@ Application web moderne, ultra-fluide et autonome conçue sur-mesure pour les fo
 
 Le site est d'ores et déjà prêt et lancé sur votre machine :
 - 🌐 **URL Locale** : [http://localhost:3005](http://localhost:3005)
-- 🗄️ **Base de données** : SQLite locale (`prisma/dev.db`), ultra-rapide et sans aucune installation complexe requise.
+- 🗄️ **Base de données** : PostgreSQL hébergée sur Supabase (`DATABASE_URL` et `DIRECT_URL` dans `.env`, voir `.env.example`).
 
 ### Commandes utiles :
 ```bash
