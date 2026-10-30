@@ -6,6 +6,7 @@ import {
   stripOfficerDiscordRoles,
   updateDiscordMemberNickname,
   getSessionOfficer,
+  officerEditError,
 } from "../../../../lib/discord";
 import { isHighCommand } from "../../../../lib/ranks";
 
@@ -84,6 +85,10 @@ export async function PATCH(
     }
 
     const body = await req.json();
+    const permissionError = officerEditError(await getSessionOfficer(), officerId, body);
+    if (permissionError) {
+      return NextResponse.json({ error: permissionError }, { status: 403 });
+    }
     const updateData: Record<string, any> = {};
 
     if (body.name !== undefined) updateData.name = body.name.trim();
@@ -96,15 +101,7 @@ export async function PATCH(
     if (body.unitType !== undefined) updateData.unitType = body.unitType;
     if (body.rank !== undefined) updateData.rank = body.rank;
     if (body.isInstructor !== undefined) updateData.isInstructor = Boolean(body.isInstructor);
-    if (body.isInvestigator !== undefined) {
-      if (!isHighCommand(await getSessionOfficer())) {
-        return NextResponse.json(
-          { error: "Seul le Haut Commandement peut nommer ou retirer un enquêteur DOA." },
-          { status: 403 }
-        );
-      }
-      updateData.isInvestigator = Boolean(body.isInvestigator);
-    }
+    if (body.isInvestigator !== undefined) updateData.isInvestigator = Boolean(body.isInvestigator);
 
     const updatedOfficer = await prisma.officer.update({
       where: { id: officerId },
@@ -161,7 +158,7 @@ export async function DELETE(
       const requester = await prisma.officer.findUnique({
         where: { id: session.officerId },
       });
-      if (requester && !isHighCommand(requester)) {
+      if (!isHighCommand(requester)) {
         return NextResponse.json(
           { error: "Accès refusé : Seuls les membres du Haut Commandement (US Marshal, Chief, Assistant-Chief, Deputy-Chief) peuvent supprimer un agent du site." },
           { status: 403 }

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../lib/prisma";
-import { getDiscordConfig, sendWelcomeDM, syncOfficerDiscordRoles } from "../../../lib/discord";
+import { getDiscordConfig, sendWelcomeDM, syncOfficerDiscordRoles, getSessionOfficer } from "../../../lib/discord";
+import { isHighCommand } from "../../../lib/ranks";
 
 export async function GET() {
   try {
@@ -23,6 +24,10 @@ export async function GET() {
 
 export async function POST(req: Request) {
   try {
+    // Creating an officer sets rank, admin flag and linked Discord account.
+    if (!isHighCommand(await getSessionOfficer())) {
+      return NextResponse.json({ error: "Seul le Haut Commandement peut créer un agent." }, { status: 403 });
+    }
     const body = await req.json();
 
     const cleanDiscordId = body.discordId ? body.discordId.trim().replace(/[<@!>]/g, "") : null;

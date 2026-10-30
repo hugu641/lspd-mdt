@@ -31,7 +31,7 @@ export async function POST(
       const requester = await prisma.officer.findUnique({
         where: { id: session.officerId },
       });
-      if (requester && !isHighCommand(requester)) {
+      if (!isHighCommand(requester)) {
         return NextResponse.json(
           { error: "Accès refusé : Seuls les membres du Haut Commandement (US Marshal, Chief, Assistant-Chief, Deputy-Chief) peuvent retirer les rôles d'un agent." },
           { status: 403 }

@@ -1865,3 +1865,23 @@ export async function getSessionOfficer() {
 export function canEditDoa(officer?: { isInvestigator?: boolean | null; rank?: string | null; department?: string | null; isAdmin?: boolean | null } | null) {
   return Boolean(officer && (officer.isInvestigator || isHighCommand(officer)));
 }
+
+// Fields that grant rights or identity: only High Command may change them, on anyone.
+const OFFICER_COMMAND_FIELDS = ["rank", "department", "isAdmin", "isInstructor", "isInvestigator", "isRecruiter", "discordId", "discordTag"];
+
+/**
+ * Who may PATCH an officer: High Command on anyone; others only their own profile,
+ * and never the command fields. Returns an error message, or null when allowed.
+ */
+export function officerEditError(
+  requester: { id: string; rank?: string | null; department?: string | null; isAdmin?: boolean | null } | null,
+  targetId: string,
+  body: Record<string, unknown>
+): string | null {
+  if (!requester) return "Session invalide : reconnectez-vous.";
+  if (isHighCommand(requester)) return null;
+  if (requester.id !== targetId) return "Vous ne pouvez modifier que votre propre profil.";
+  const forbidden = OFFICER_COMMAND_FIELDS.filter((f) => body[f] !== undefined);
+  if (forbidden.length) return `Réservé au Haut Commandement : ${forbidden.join(", ")}.`;
+  return null;
+}

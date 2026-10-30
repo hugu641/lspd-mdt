@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../../../lib/prisma";
-import { getDiscordConfig, syncOfficerDiscordRoles } from "../../../../../lib/discord";
+import { getDiscordConfig, syncOfficerDiscordRoles, getSessionOfficer, officerEditError } from "../../../../../lib/discord";
 
 export async function PATCH(
   req: Request,
@@ -8,6 +8,10 @@ export async function PATCH(
 ) {
   try {
     const body = await req.json();
+    const permissionError = officerEditError(await getSessionOfficer(), params.id, body);
+    if (permissionError) {
+      return NextResponse.json({ error: permissionError }, { status: 403 });
+    }
     const updateData: Record<string, any> = {};
 
     if (body.status !== undefined) updateData.status = body.status;

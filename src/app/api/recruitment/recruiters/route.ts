@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "../../../../lib/prisma";
-import { syncOfficerDiscordRoles } from "../../../../lib/discord";
+import { syncOfficerDiscordRoles, getSessionOfficer } from "../../../../lib/discord";
+import { hasRecruitmentAccess } from "../../../../lib/recruitmentAuth";
 
 export async function GET(req: Request) {
   try {
@@ -19,6 +20,10 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
+    // Same rule as the recruitment page: High Command or existing recruiters manage the team.
+    if (!hasRecruitmentAccess(await getSessionOfficer())) {
+      return NextResponse.json({ error: "Accès refusé : réservé au pôle recrutement." }, { status: 403 });
+    }
     const body = await req.json();
     const { officerId, isRecruiter } = body;
 
