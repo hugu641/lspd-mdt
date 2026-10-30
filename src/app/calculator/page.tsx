@@ -5,6 +5,7 @@ import { useOfficer } from "../../context/OfficerContext";
 import Link from "next/link";
 import {
   Calculator,
+  ImagePlus,
   Loader2,
   Plus,
   Minus,
@@ -51,6 +52,20 @@ interface PenalItem {
   orderIndex: number;
 }
 
+const MAX_PV_PHOTOS = 6;
+
+// Downscales an image file to a JPEG data URL so evidence fits in the PV record.
+async function compressImage(file: File): Promise<string> {
+  const bitmap = await createImageBitmap(file);
+  const scale = Math.min(1, 1600 / Math.max(bitmap.width, bitmap.height));
+  const canvas = document.createElement("canvas");
+  canvas.width = Math.round(bitmap.width * scale);
+  canvas.height = Math.round(bitmap.height * scale);
+  canvas.getContext("2d")!.drawImage(bitmap, 0, 0, canvas.width, canvas.height);
+  bitmap.close();
+  return canvas.toDataURL("image/jpeg", 0.8);
+}
+
 interface AiSuggestion {
   item: PenalItem;
   count: number;
@@ -69,6 +84,10 @@ export default function CalculatorPage() {
   const [aiLoading, setAiLoading] = useState(false);
   const [aiError, setAiError] = useState<string | null>(null);
   const [aiSuggestions, setAiSuggestions] = useState<AiSuggestion[] | null>(null);
+  const [photos, setPhotos] = useState<string[]>([]);
+  const [photoUrlInput, setPhotoUrlInput] = useState("");
+  const [photoError, setPhotoError] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [citizens, setCitizens] = useState<any[]>([]);
   const [selectedCitizenId, setSelectedCitizenId] = useState("");
   const [citizenPhone, setCitizenPhone] = useState("");
@@ -252,6 +271,9 @@ export default function CalculatorPage() {
     setSelectedItems({});
     setProbationModifier(0);
     setNotes("");
+    setPhotos([]);
+    setPhotoUrlInput("");
+    setPhotoError(null);
     setManualPrisonChecked(null);
     setMirandaNotified(false);
   };
@@ -341,6 +363,58 @@ export default function CalculatorPage() {
       item.title.toLowerCase().includes(q) ||
       (item.description || "").toLowerCase().includes(q);
     return matchesCat && matchesSection && matchesQuery;
+  });
+
+  // PV evidence photos: imported, dropped or pasted images, or http(s) links
+  const addPhotoFiles = async (files: File[]) => {
+    const images = files.filter((f) => f.type.startsWith("image/"));
+    if (!images.length) return;
+    setPhotoError(null);
+    setPhotoBusy(true);
+    try {
+      const urls: string[] = [];
+      for (const file of images) {
+        try {
+          urls.push(await compressImage(file));
+        } catch {
+          setPhotoError(`Image illisible : ${file.name || "presse-papiers"}`);
+        }
+      }
+      setPhotos((prev) => {
+        const next = [...prev, ...urls];
+        if (next.length > MAX_PV_PHOTOS) setPhotoError(`${MAX_PV_PHOTOS} photos maximum par procès-verbal.`);
+        return next.slice(0, MAX_PV_PHOTOS);
+      });
+    } finally {
+      setPhotoBusy(false);
+    }
+  };
+
+  const addPhotoUrl = () => {
+    const url = photoUrlInput.trim();
+    if (!/^https?:\/\/\S+$/i.test(url)) {
+      setPhotoError("Lien invalide : il doit commencer par http:// ou https://");
+      return;
+    }
+    if (photos.length >= MAX_PV_PHOTOS) {
+      setPhotoError(`${MAX_PV_PHOTOS} photos maximum par procès-verbal.`);
+      return;
+    }
+    setPhotos((prev) => [...prev, url]);
+    setPhotoUrlInput("");
+    setPhotoError(null);
+  };
+
+  // Ctrl+V anywhere on the page adds a copied image; text pastes are left untouched.
+  useEffect(() => {
+    const onPaste = (e: ClipboardEvent) => {
+      const files = Array.from(e.clipboardData?.files || []).filter((f) => f.type.startsWith("image/"));
+      if (!files.length) return;
+      e.preventDefault();
+      addPhotoFiles(files);
+    };
+    window.addEventListener("paste", onPaste);
+    return () => window.removeEventListener("paste", onPaste);
   });
 
   // AI legal assistant (Groq): suggests articles from the facts, agent validates them
@@ -443,6 +517,7 @@ export default function CalculatorPage() {
           totalFine,
           totalJailTime: totalJail,
           items: itemsPayload,
+          photos,
         }),
       });
 
@@ -1425,6 +1500,85 @@ export default function CalculatorPage() {
                   placeholder="Comportement du suspect, aveux, saisies matérielles..."
                   className="w-full px-3 py-2 rounded-xl bg-[#050711] border border-[#21274d] text-xs text-white focus:outline-none focus:border-purple-500 font-medium"
                 />
+              </div>
+
+              {/* Evidence photos */}
+              <div>
+                <label className="block text-[11px] font-bold text-slate-300 mb-1">
+                  Photos & preuves ({photos.length}/{MAX_PV_PHOTOS})
+                </label>
+                <label
+                  onDragOver={(e) => e.preventDefault()}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    addPhotoFiles(Array.from(e.dataTransfer.files));
+                  }}
+                  className="flex flex-col items-center justify-center gap-1 px-3 py-4 rounded-xl bg-[#050711] border border-dashed border-[#2a3166] hover:border-purple-500 text-center cursor-pointer transition-colors"
+                >
+                  {photoBusy ? (
+                    <Loader2 className="w-5 h-5 text-purple-400 animate-spin" />
+                  ) : (
+                    <ImagePlus className="w-5 h-5 text-purple-400" />
+                  )}
+                  <span className="text-[11px] font-semibold text-slate-300">
+                    Cliquez pour importer, glissez une image ici, ou collez-la avec Ctrl+V
+                  </span>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    multiple
+                    className="sr-only"
+                    onChange={(e) => {
+                      addPhotoFiles(Array.from(e.target.files || []));
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+
+                <div className="flex gap-1.5 mt-2">
+                  <input
+                    type="url"
+                    value={photoUrlInput}
+                    onChange={(e) => setPhotoUrlInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addPhotoUrl();
+                      }
+                    }}
+                    placeholder="Ou collez un lien d'image (https://...)"
+                    aria-label="Lien d'une photo"
+                    className="flex-1 min-w-0 px-3 py-2 rounded-xl bg-[#050711] border border-[#21274d] text-xs text-white focus:outline-none focus:border-purple-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={addPhotoUrl}
+                    className="px-3 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold"
+                  >
+                    Ajouter
+                  </button>
+                </div>
+
+                {photoError && <div className="mt-1.5 text-[11px] font-semibold text-rose-300">{photoError}</div>}
+
+                {photos.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2 mt-2">
+                    {photos.map((url, idx) => (
+                      <div key={idx} className="relative group aspect-square rounded-lg overflow-hidden border border-[#21274d] bg-black">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={url} alt={`Preuve ${idx + 1}`} className="w-full h-full object-cover" />
+                        <button
+                          type="button"
+                          onClick={() => setPhotos((prev) => prev.filter((_, i) => i !== idx))}
+                          aria-label={`Retirer la photo ${idx + 1}`}
+                          className="absolute top-1 right-1 p-1 rounded-md bg-black/70 text-white hover:bg-rose-600"
+                        >
+                          <X className="w-3 h-3" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </div>
 

@@ -93,6 +93,7 @@ model Citation {
   totalFine       Int
   totalJailTime   Int            @default(0)
   status          String         @default("Impayée") // Impayée, Payée, Classée
+  photos          String?        // JSON string: preuves [{ id, url, createdAt }] (lien http(s) ou image data:)
   createdAt       DateTime       @default(now())
 
   items           CitationItem[]

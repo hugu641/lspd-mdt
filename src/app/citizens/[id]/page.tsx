@@ -710,6 +710,24 @@ export default function CitizenDetailPage() {
                     Notes : {cit.notes}
                   </div>
                 )}
+
+                {parsePhotos(cit.photos).length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {parsePhotos(cit.photos).map((photo, idx) => (
+                      <button
+                        key={photo.id}
+                        type="button"
+                        onClick={() =>
+                          setLightboxPhoto({ ...photo, caption: `Preuve ${idx + 1} — ${cit.citationNumber}`, category: "Preuve" })
+                        }
+                        aria-label={`Agrandir la preuve ${idx + 1}`}
+                        className="w-20 h-20 rounded-lg overflow-hidden border border-slate-800 hover:border-purple-500 bg-black"
+                      >
+                        <img src={photo.url} alt={`Preuve ${idx + 1}`} className="w-full h-full object-cover" />
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
             ))
           )}

@@ -28,9 +28,8 @@ export async function POST(req: Request) {
     }
 
     const items = await prisma.penalCodeItem.findMany({ orderBy: { orderIndex: "asc" } });
-    const catalog = items
-      .map((i) => `${i.code} | ${i.title} | ${i.category}${i.description ? ` | ${i.description}` : ""}`)
-      .join("\n");
+    // Code + title only: with descriptions the prompt (~6k tokens) exceeds Groq's free-tier tokens/minute.
+    const catalog = items.map((i) => `${i.code} | ${i.title}`).join("\n");
 
     const groqRes = await fetch(GROQ_API_URL, {
       method: "POST",
@@ -47,7 +46,7 @@ export async function POST(req: Request) {
               "À partir des faits décrits par un agent, choisis UNIQUEMENT parmi les articles du code pénal fournis ceux qui s'appliquent. " +
               "N'invente jamais d'article. Ne retiens que les infractions clairement caractérisées par les faits ; évite les doublons (ex. ne cumule pas un délit et sa version aggravée). " +
               'Réponds en JSON : {"suggestions":[{"code":"CP 210","count":1,"reason":"justification courte en français"}]}. ' +
-              "count = nombre de fois où l'infraction est commise (1 par défaut).\n\nCODE PÉNAL (code | intitulé | gravité | description) :\n" +
+              "count = nombre de fois où l'infraction est commise (1 par défaut).\n\nCODE PÉNAL (code | intitulé) :\n" +
               catalog,
           },
           { role: "user", content: facts },
@@ -58,13 +57,21 @@ export async function POST(req: Request) {
     if (!groqRes.ok) {
       const detail = await groqRes.text().catch(() => "");
       console.error("Groq API error:", groqRes.status, detail.slice(0, 500));
+      let groqMessage = "";
+      try {
+        groqMessage = JSON.parse(detail)?.error?.message || "";
+      } catch {}
       const msg =
-        groqRes.status === 429
-          ? "Limite de requêtes Groq atteinte, réessayez dans quelques secondes."
+        groqRes.status === 429 || groqRes.status === 413
+          ? "Limite de requêtes Groq atteinte, réessayez dans une minute."
           : groqRes.status === 401
           ? "Clé GROQ_API_KEY invalide."
           : "Le service d'IA est indisponible pour le moment.";
-      return NextResponse.json({ error: msg }, { status: 502 });
+      // Groq's own message (never contains the key) makes production failures diagnosable.
+      return NextResponse.json(
+        { error: groqMessage ? `${msg} (Groq ${groqRes.status} : ${groqMessage.slice(0, 200)})` : msg },
+        { status: 502 }
+      );
     }
 
     const completion = await groqRes.json();
