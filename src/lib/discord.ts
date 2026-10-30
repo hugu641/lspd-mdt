@@ -1850,11 +1850,18 @@ export async function syncAllOfficersFromDiscord() {
 export async function canEditDiscordSettings(): Promise<boolean> {
   const config = await getDiscordConfig();
   if (!config.clientId) return true;
+  return isHighCommand(await getSessionOfficer());
+}
 
+/** Officer of the current request's lspd_session cookie, or null. */
+export async function getSessionOfficer() {
   const token = cookies().get("lspd_session")?.value;
   const session = token ? verifySessionToken(token) : null;
-  if (!session) return false;
+  if (!session) return null;
+  return prisma.officer.findUnique({ where: { id: session.officerId } });
+}
 
-  const officer = await prisma.officer.findUnique({ where: { id: session.officerId } });
-  return isHighCommand(officer);
+/** DOA (criminal network) edit rights: High Command or officers flagged as investigators. */
+export function canEditDoa(officer?: { isInvestigator?: boolean | null; rank?: string | null; department?: string | null; isAdmin?: boolean | null } | null) {
+  return Boolean(officer && (officer.isInvestigator || isHighCommand(officer)));
 }

@@ -4,51 +4,27 @@ const prisma = new PrismaClient();
 async function main() {
   console.log("Checking reference data (Penal Code & Radio Codes)...");
 
-  // 1. Seed Penal Code Items only if table is empty
-  const penalCount = await prisma.penalCodeItem.count();
-  if (penalCount === 0) {
-    console.log("Seeding official Penal Code...");
-    const penalCode = [
-      // Contraventions (11)
-      { code: "CP 100", title: "Excès de vitesse", category: "Contraventions", fine: 2000, jailTime: 0, secondarySanction: null, orderIndex: 1 },
-      { code: "CP 110", title: "Conduite sans permis valide", category: "Contraventions", fine: 6500, jailTime: 0, secondarySanction: null, orderIndex: 2 },
-      { code: "CP 113", title: "Participation à un convoi illégal", category: "Contraventions", fine: 6000, jailTime: 0, secondarySanction: "Suspension du permis de conduire", orderIndex: 3 },
-      { code: "CP 117", title: "Usage de stupéfiants", category: "Contraventions", fine: 15000, jailTime: 0, secondarySanction: "Confiscation des produits", orderIndex: 4 },
-      { code: "CP 118", title: "Détention de matériel destiné à la consommation ou à la production de stupéfiants", category: "Contraventions", fine: 12000, jailTime: 0, secondarySanction: "Confiscation du matériel", orderIndex: 5 },
-      { code: "CP 131", title: "Tapage nocturne", category: "Contraventions", fine: 2500, jailTime: 0, secondarySanction: null, orderIndex: 6 },
-      { code: "CP 132", title: "Ivresse publique manifeste", category: "Contraventions", fine: 3000, jailTime: 0, secondarySanction: null, orderIndex: 7 },
-      { code: "CP 135", title: "Occupation illégale d'un lieu", category: "Contraventions", fine: 4500, jailTime: 0, secondarySanction: "Expulsion immédiate des lieux", orderIndex: 8 },
-      { code: "CP 136", title: "Dépôt sauvage de déchets", category: "Contraventions", fine: 5000, jailTime: 0, secondarySanction: "Remise en état à la charge de l'auteur", orderIndex: 9 },
-      { code: "CP 138", title: "Obstruction à la voie publique", category: "Contraventions", fine: 3500, jailTime: 0, secondarySanction: "Enlèvement de l'obstacle aux frais de l'auteur", orderIndex: 10 },
-      { code: "CD 19", title: "Manquement au devoir de réserve", category: "Contraventions", fine: 4000, jailTime: 0, secondarySanction: null, orderIndex: 11 },
-
-      // Délits (7)
-      { code: "CP 200", title: "Refus d'obtempérer", category: "Délits", fine: 10000, jailTime: 20, secondarySanction: null, orderIndex: 12 },
-      { code: "CP 210", title: "Port d'arme illégal", category: "Délits", fine: 20000, jailTime: 30, secondarySanction: "Confiscation de l'arme", orderIndex: 13 },
-      { code: "CP 120", title: "Conduite en état d'ivresse", category: "Délits", fine: 12000, jailTime: 20, secondarySanction: "Retrait immédiat du permis", orderIndex: 14 },
-      { code: "CP 121", title: "Délit de fuite", category: "Délits", fine: 15000, jailTime: 30, secondarySanction: null, orderIndex: 15 },
-      { code: "CP 205", title: "Outrage à agent", category: "Délits", fine: 8000, jailTime: 15, secondarySanction: null, orderIndex: 16 },
-      { code: "CP 220", title: "Détention de stupéfiants", category: "Délits", fine: 18000, jailTime: 30, secondarySanction: "Confiscation des produits", orderIndex: 17 },
-      { code: "CP 230", title: "Vol de véhicule", category: "Délits", fine: 25000, jailTime: 40, secondarySanction: "Restitution au propriétaire", orderIndex: 18 },
-
-      // Crimes (5)
-      { code: "CP 300", title: "Violence aggravée", category: "Crimes", fine: 35000, jailTime: 60, secondarySanction: null, orderIndex: 19 },
-      { code: "CP 310", title: "Braquage de commerce", category: "Crimes", fine: 50000, jailTime: 90, secondarySanction: null, orderIndex: 20 },
-      { code: "CP 320", title: "Prise d'otage", category: "Crimes", fine: 80000, jailTime: 120, secondarySanction: null, orderIndex: 21 },
-      { code: "CP 330", title: "Trafic de stupéfiants", category: "Crimes", fine: 70000, jailTime: 100, secondarySanction: "Saisie des biens", orderIndex: 22 },
-      { code: "CP 340", title: "Tentative de meurtre", category: "Crimes", fine: 90000, jailTime: 120, secondarySanction: null, orderIndex: 23 },
-
-      // Crimes fédéraux (2)
-      { code: "CP 400", title: "Trafic d'armes", category: "Crimes fédéraux", fine: 100000, jailTime: 120, secondarySanction: "Transfert au procureur fédéral", orderIndex: 24 },
-      { code: "CP 410", title: "Meurtre sur agent des forces de l'ordre", category: "Crimes fédéraux", fine: 150000, jailTime: 180, secondarySanction: "Transfert au procureur fédéral", orderIndex: 25 },
-    ];
-
-    for (const item of penalCode) {
+  // 1. Penal Code: add missing articles; existing ones keep their (admin-edited) values,
+  //    only their empty description/section get filled.
+  const penalCode = require('./penalCode');
+  let added = 0;
+  for (const item of penalCode) {
+    const existing = await prisma.penalCodeItem.findUnique({ where: { code: item.code } });
+    if (!existing) {
       await prisma.penalCodeItem.create({ data: item });
+      added++;
+    } else if (!existing.description || !existing.section) {
+      await prisma.penalCodeItem.update({
+        where: { id: existing.id },
+        data: {
+          description: existing.description || item.description,
+          section: existing.section || item.section,
+        },
+      });
     }
   }
+  console.log(`Penal Code: ${added} article(s) added.`);
 
-  // 2. Seed Radio Codes only if table is empty
   const radioCount = await prisma.radioCodeReference.count();
   if (radioCount === 0) {
     console.log("Seeding official Radio Codes...");

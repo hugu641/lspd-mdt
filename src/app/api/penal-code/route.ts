@@ -24,6 +24,8 @@ export async function POST(req: Request) {
         fine: Number(body.fine) || 0,
         jailTime: Number(body.jailTime) || 0,
         secondarySanction: body.secondarySanction || null,
+        description: body.description?.trim() || null,
+        section: body.section?.trim() || null,
         orderIndex: Number(body.orderIndex) || 99,
       },
     });

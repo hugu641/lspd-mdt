@@ -10,6 +10,7 @@ import {
   AlertTriangle,
   Car,
   Crosshair,
+  Network,
   FileText,
   DollarSign,
   Clock,
@@ -51,7 +52,8 @@ export default function CitizenDetailPage() {
 
   const [citizen, setCitizen] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<"casier" | "photos" | "mandats" | "vehicules" | "armes">("casier");
+  const [activeTab, setActiveTab] = useState<"casier" | "photos" | "mandats" | "vehicules" | "armes" | "doa">("casier");
+  const [doa, setDoa] = useState<any | null>(null);
   const [notes, setNotes] = useState("");
   const [noteSavedAlert, setNoteSavedAlert] = useState(false);
   const [toastMessage, setToastMessage] = useState<{ text: string; type: "success" | "error" } | null>(null);
@@ -622,6 +624,24 @@ export default function CitizenDetailPage() {
           <Crosshair className="w-4 h-4" />
           <span>Armes Déclarées ({citizen.weapons?.length || 0})</span>
         </button>
+
+        <button
+          onClick={() => {
+            setActiveTab("doa");
+            fetch("/api/doa")
+              .then((r) => (r.ok ? r.json() : null))
+              .then(setDoa)
+              .catch(() => setDoa(null));
+          }}
+          className={`flex items-center gap-1.5 px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+            activeTab === "doa"
+              ? "btn-theme-primary shadow-md"
+              : "text-slate-400 hover:text-white hover:bg-slate-800"
+          }`}
+        >
+          <Network className="w-4 h-4" />
+          <span>Réseau DOA</span>
+        </button>
       </div>
 
       {/* =====================================================================
@@ -937,6 +957,60 @@ export default function CitizenDetailPage() {
               </div>
             ))
           )}
+        </div>
+      )}
+
+      {/* =====================================================================
+          TAB 6: RÉSEAU DOA (liaisons individus / organisations / affaires)
+          ===================================================================== */}
+      {activeTab === "doa" && (
+        <div className="police-card p-4 rounded-2xl space-y-3">
+          {(() => {
+            if (!doa) return <div className="text-xs text-slate-400">Chargement du réseau...</div>;
+            const self = `CITIZEN:${citizen.id}`;
+            const nameOf = (type: string, refId: string) => {
+              if (type === "CITIZEN") {
+                const c = doa.citizens.find((x: any) => x.id === refId);
+                return c ? `${c.firstName} ${c.lastName}` : "Individu";
+              }
+              if (type === "ORGANIZATION") return doa.organizations.find((x: any) => x.id === refId)?.name || "Organisation";
+              const inv = doa.investigations.find((x: any) => x.id === refId);
+              return inv ? `${inv.caseNumber} — ${inv.title}` : "Affaire";
+            };
+            const mine = doa.links.filter(
+              (l: any) => `${l.sourceType}:${l.sourceId}` === self || `${l.targetType}:${l.targetId}` === self
+            );
+            return (
+              <>
+                <div className="flex items-center justify-between">
+                  <div className="text-sm font-bold text-white">Liaisons connues ({mine.length})</div>
+                  <Link href={`/doa?focus=${self}`} className="text-xs font-bold text-theme-primary hover:underline">
+                    Ouvrir dans la DOA →
+                  </Link>
+                </div>
+                {mine.length === 0 ? (
+                  <div className="text-xs text-slate-400">Aucune liaison enregistrée pour ce citoyen.</div>
+                ) : (
+                  mine.map((l: any) => {
+                    const outgoing = `${l.sourceType}:${l.sourceId}` === self;
+                    const type = outgoing ? l.targetType : l.sourceType;
+                    const refId = outgoing ? l.targetId : l.sourceId;
+                    return (
+                      <div key={l.id} className="p-3 rounded-xl border border-slate-800 space-y-1">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-purple-950 text-purple-300 border border-purple-500/30">
+                            {l.relation}
+                          </span>
+                          <span className="text-xs font-semibold text-white">{nameOf(type, refId)}</span>
+                        </div>
+                        {l.notes && <div className="text-xs text-slate-400 whitespace-pre-wrap">{l.notes}</div>}
+                      </div>
+                    );
+                  })
+                )}
+              </>
+            );
+          })()}
         </div>
       )}
 

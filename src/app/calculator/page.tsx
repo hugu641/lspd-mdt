@@ -5,6 +5,7 @@ import { useOfficer } from "../../context/OfficerContext";
 import Link from "next/link";
 import {
   Calculator,
+  Loader2,
   Plus,
   Minus,
   Trash2,
@@ -45,7 +46,16 @@ interface PenalItem {
   fine: number;
   jailTime: number;
   secondarySanction: string | null;
+  description: string | null;
+  section: string | null;
   orderIndex: number;
+}
+
+interface AiSuggestion {
+  item: PenalItem;
+  count: number;
+  reason: string;
+  checked: boolean;
 }
 
 export default function CalculatorPage() {
@@ -54,6 +64,11 @@ export default function CalculatorPage() {
   const [selectedItems, setSelectedItems] = useState<Record<string, number>>({});
   const [activeCategory, setActiveCategory] = useState<string>("Toutes");
   const [searchQuery, setSearchQuery] = useState("");
+  const [activeSection, setActiveSection] = useState("Tous");
+  const [aiFacts, setAiFacts] = useState("");
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState<string | null>(null);
+  const [aiSuggestions, setAiSuggestions] = useState<AiSuggestion[] | null>(null);
   const [citizens, setCitizens] = useState<any[]>([]);
   const [selectedCitizenId, setSelectedCitizenId] = useState("");
   const [citizenPhone, setCitizenPhone] = useState("");
@@ -315,13 +330,58 @@ export default function CalculatorPage() {
     .map((item) => ({ code: item.code, sanction: item.secondarySanction }));
 
   // Filter penal items
+  const sections = Array.from(new Set(penalCode.map((p) => p.section).filter(Boolean))) as string[];
+
   const filteredItems = penalCode.filter((item) => {
+    const q = searchQuery.toLowerCase();
     const matchesCat = activeCategory === "Toutes" || item.category === activeCategory;
+    const matchesSection = activeSection === "Tous" || item.section === activeSection;
     const matchesQuery =
-      item.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      item.title.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCat && matchesQuery;
+      item.code.toLowerCase().includes(q) ||
+      item.title.toLowerCase().includes(q) ||
+      (item.description || "").toLowerCase().includes(q);
+    return matchesCat && matchesSection && matchesQuery;
   });
+
+  // AI legal assistant (Groq): suggests articles from the facts, agent validates them
+  const handleAnalyzeFacts = async () => {
+    setAiLoading(true);
+    setAiError(null);
+    setAiSuggestions(null);
+    try {
+      const res = await fetch("/api/penal-code/suggest", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ facts: aiFacts }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setAiError(data.error || "Erreur lors de l'analyse.");
+        return;
+      }
+      setAiSuggestions(
+        (data.suggestions || []).map((s: Omit<AiSuggestion, "checked">) => ({ ...s, checked: true }))
+      );
+    } catch {
+      setAiError("Impossible de contacter l'assistant IA.");
+    } finally {
+      setAiLoading(false);
+    }
+  };
+
+  const handleApplySuggestions = () => {
+    if (!aiSuggestions) return;
+    setSelectedItems((prev) => {
+      const next = { ...prev };
+      for (const s of aiSuggestions) {
+        if (s.checked) next[s.item.id] = (next[s.item.id] || 0) + s.count;
+      }
+      return next;
+    });
+    if (!notes.trim()) setNotes(`Faits constatés : ${aiFacts.trim()}`);
+    setAiSuggestions(null);
+    setAiFacts("");
+  };
 
   // Submit Citation (Procès-Verbal)
   const handleSubmitCitation = async () => {
@@ -536,6 +596,95 @@ export default function CalculatorPage() {
             mobileView === "ticket" ? "hidden lg:block" : "block"
           }`}
         >
+          {/* AI Legal Assistant (Groq) */}
+          <div className="p-3.5 sm:p-4 rounded-3xl bg-[#090b17] border border-purple-500/30 shadow-lg space-y-3">
+            <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-purple-300">
+              <Sparkles className="w-4 h-4 text-purple-400" />
+              <span>Assistant juridique IA</span>
+            </div>
+            <textarea
+              rows={3}
+              placeholder="Décrivez les faits constatés. Ex : Individu contrôlé avec une arme illégale sur lui, sans autorisation de port."
+              value={aiFacts}
+              onChange={(e) => setAiFacts(e.target.value)}
+              maxLength={3000}
+              className="w-full px-3 py-2.5 rounded-2xl bg-[#070814] border border-[#21274d] text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 resize-y"
+            />
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] text-slate-500">
+                L&apos;IA propose, l&apos;agent valide. Montants et peines issus du code pénal officiel.
+              </span>
+              <button
+                type="button"
+                onClick={handleAnalyzeFacts}
+                disabled={aiLoading || aiFacts.trim().length < 5}
+                className="px-3.5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-bold flex items-center gap-1.5 disabled:opacity-40 disabled:pointer-events-none transition-all flex-shrink-0"
+              >
+                {aiLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />}
+                <span>{aiLoading ? "Analyse..." : "Analyser les faits"}</span>
+              </button>
+            </div>
+
+            {aiError && (
+              <div className="text-xs font-semibold text-rose-300 bg-rose-500/10 border border-rose-500/30 rounded-xl px-3 py-2">
+                {aiError}
+              </div>
+            )}
+
+            {aiSuggestions && (
+              <div className="space-y-2">
+                {aiSuggestions.length === 0 ? (
+                  <div className="text-xs text-slate-400">Aucune infraction identifiée. Précisez les faits.</div>
+                ) : (
+                  aiSuggestions.map((s, idx) => (
+                    <label
+                      key={s.item.id}
+                      className={`flex items-start gap-2.5 p-2.5 rounded-xl border cursor-pointer transition-all ${
+                        s.checked ? "bg-purple-950/40 border-purple-500/50" : "bg-[#070814] border-[#1f254e] opacity-60"
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={s.checked}
+                        onChange={() =>
+                          setAiSuggestions((prev) =>
+                            prev ? prev.map((p, i) => (i === idx ? { ...p, checked: !p.checked } : p)) : prev
+                          )
+                        }
+                        className="mt-0.5 accent-purple-500"
+                      />
+                      <div className="flex-1 min-w-0 space-y-0.5">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <span className="font-mono text-[11px] font-black text-purple-300">{s.item.code}</span>
+                          <span className="text-xs font-bold text-white">{s.item.title}</span>
+                          {s.count > 1 && <span className="text-[10px] font-mono text-purple-300">x{s.count}</span>}
+                        </div>
+                        <div className="text-[11px] font-mono text-amber-400">
+                          ${s.item.fine.toLocaleString()}
+                          {s.item.jailTime > 0 && <span className="text-red-300"> · {s.item.jailTime} min</span>}
+                          {s.item.secondarySanction && (
+                            <span className="text-amber-300 font-sans"> · {s.item.secondarySanction}</span>
+                          )}
+                        </div>
+                        {s.reason && <div className="text-[11px] text-slate-400">{s.reason}</div>}
+                      </div>
+                    </label>
+                  ))
+                )}
+                {aiSuggestions.some((s) => s.checked) && (
+                  <button
+                    type="button"
+                    onClick={handleApplySuggestions}
+                    className="w-full py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold flex items-center justify-center gap-1.5"
+                  >
+                    <Check className="w-3.5 h-3.5" />
+                    <span>Ajouter la sélection au procès-verbal</span>
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+
           {/* Search Bar & Category Filter Pills */}
           <div className="p-3.5 sm:p-4 rounded-3xl bg-[#090b17] border border-[#1a1f3c] shadow-lg space-y-3">
             {/* Search Input */}
@@ -543,7 +692,7 @@ export default function CalculatorPage() {
               <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
               <input
                 type="text"
-                placeholder="Rechercher par code (CP 100), mot-clé (Vitesse, Arme, Refus...)"
+                placeholder="Rechercher par code (CP 100), mot-clé ou description (Vitesse, Arme, Refus...)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="w-full pl-10 pr-9 py-2.5 rounded-2xl bg-[#070814] border border-[#21274d] text-xs sm:text-sm text-white placeholder-slate-500 focus:outline-none focus:border-purple-500 font-medium transition-colors"
@@ -592,6 +741,23 @@ export default function CalculatorPage() {
                 );
               })}
             </div>
+
+            {/* Thematic section filter */}
+            {sections.length > 0 && (
+              <select
+                value={activeSection}
+                onChange={(e) => setActiveSection(e.target.value)}
+                aria-label="Filtrer par thème"
+                className="w-full px-3 py-2 rounded-xl bg-[#070814] border border-[#21274d] text-xs text-white focus:outline-none focus:border-purple-500"
+              >
+                <option value="Tous">Tous les thèmes</option>
+                {sections.map((sec) => (
+                  <option key={sec} value={sec}>
+                    {sec} ({penalCode.filter((p) => p.section === sec).length})
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
 
           {/* List of Penal Articles */}
@@ -645,6 +811,14 @@ export default function CalculatorPage() {
                       <h3 className="text-sm font-bold text-white leading-snug">
                         {item.title}
                       </h3>
+
+                      {item.description && (
+                        <p className="text-[11px] text-slate-400 leading-snug">{item.description}</p>
+                      )}
+
+                      {item.section && (
+                        <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">{item.section}</div>
+                      )}
 
                       {item.secondarySanction && (
                         <div className="inline-flex items-center gap-1 text-[11px] font-semibold text-amber-300 bg-amber-500/10 px-2.5 py-0.5 rounded-lg border border-amber-500/20">

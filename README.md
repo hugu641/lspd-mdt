@@ -102,6 +102,22 @@ npm run start
 - Bouton d'urgence 10-99 déclenchant une alerte visuelle prioritaire sur le terminal.
 - Support Discord OAuth2 prévu dans le fichier `.env` pour activer la connexion par rôle Discord quand vous le souhaiterez.
 
+### 11. 📚 Code Pénal Complet (149 articles)
+- Chaque article a un code, un intitulé, une gravité (Contravention, Délit, Crime, Crime fédéral), un **thème** (Circulation routière, Armes, Stupéfiants, Atteintes aux personnes, aux biens, à l'autorité publique, Ordre public, Crime organisé), une amende, une peine de prison, une peine complémentaire et une **description**.
+- Source : `prisma/penalCode.js`. Le seed ajoute les articles manquants sans écraser les montants modifiés depuis l'administration.
+- Recherche par code, mot-clé ou description et filtre par thème dans la calculatrice.
+
+### 12. 🤖 Assistant Juridique IA (Groq)
+- Dans `/calculator`, l'agent décrit les faits ; l'IA propose les articles applicables, l'agent coche ceux qu'il retient et les ajoute au PV.
+- L'IA ne renvoie que des numéros d'article : amendes, prison et peines viennent toujours de la base (aucun montant inventé).
+- Configuration : `GROQ_API_KEY` (clé gratuite sur https://console.groq.com). Optionnel : `GROQ_MODEL` (défaut `llama-3.3-70b-versatile`).
+
+### 13. 🕸️ DOA — Réseaux & Organisations Criminelles (`/doa`)
+- Graphe interactif des liens entre **individus**, **organisations** et **affaires** (zoom, déplacement, recherche, filtre par type).
+- Chaque liaison a un type de relation (Membre, Chef, Associé, Rival, Fournisseur, Suspect...), des notes, son auteur et sa date ; consultation, modification et suppression.
+- Onglet « Réseau DOA » sur chaque fiche citoyen.
+- Lecture pour tous les agents ; modification réservée au **Haut Commandement** et aux agents nommés **Enquêteurs** (bouton « Enquêteurs » de la page DOA).
+
 ---
 
 ## 🚑 Extension EMS / Hôpital (Prévue et modulaire)

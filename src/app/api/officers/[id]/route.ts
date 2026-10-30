@@ -5,6 +5,7 @@ import {
   verifySessionToken,
   stripOfficerDiscordRoles,
   updateDiscordMemberNickname,
+  getSessionOfficer,
 } from "../../../../lib/discord";
 import { isHighCommand } from "../../../../lib/ranks";
 
@@ -95,6 +96,15 @@ export async function PATCH(
     if (body.unitType !== undefined) updateData.unitType = body.unitType;
     if (body.rank !== undefined) updateData.rank = body.rank;
     if (body.isInstructor !== undefined) updateData.isInstructor = Boolean(body.isInstructor);
+    if (body.isInvestigator !== undefined) {
+      if (!isHighCommand(await getSessionOfficer())) {
+        return NextResponse.json(
+          { error: "Seul le Haut Commandement peut nommer ou retirer un enquêteur DOA." },
+          { status: 403 }
+        );
+      }
+      updateData.isInvestigator = Boolean(body.isInvestigator);
+    }
 
     const updatedOfficer = await prisma.officer.update({
       where: { id: officerId },

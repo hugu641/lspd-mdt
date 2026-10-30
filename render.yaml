@@ -16,5 +16,7 @@ services:
         sync: false
       - key: NEXTAUTH_SECRET
         generateValue: true
+      - key: GROQ_API_KEY
+        sync: false
       - key: NEXTAUTH_URL
         value: https://lspd-mdt.onrender.com

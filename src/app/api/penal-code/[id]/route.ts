@@ -21,6 +21,8 @@ export async function PATCH(
         ...(body.secondarySanction !== undefined && {
           secondarySanction: body.secondarySanction?.trim() || null,
         }),
+        ...(body.description !== undefined && { description: body.description?.trim() || null }),
+        ...(body.section !== undefined && { section: body.section?.trim() || null }),
         ...(body.orderIndex !== undefined && { orderIndex: Number(body.orderIndex) || 0 }),
       },
     });

@@ -23,6 +23,7 @@ model Officer {
   isInstructor    Boolean  @default(false)
   isRecruiter     Boolean  @default(false)
   isAdmin         Boolean  @default(false)
+  isInvestigator  Boolean  @default(false) // Peut modifier la DOA (réseaux criminels)
   discordId       String?  // ID Discord de l'agent (17-19 chiffres)
   discordTag      String?  // Pseudo / Tag Discord (ex: hugu641)
   createdAt       DateTime @default(now())
@@ -73,6 +74,8 @@ model PenalCodeItem {
   fine              Int      // En dollars
   jailTime          Int      @default(0) // En minutes
   secondarySanction String?  // Suspension de permis, confiscation...
+  description       String?  // Éléments constitutifs de l'infraction (sert aussi à l'assistant IA)
+  section           String?  // Thème : Circulation routière, Armes, Stupéfiants...
   orderIndex        Int      @default(0)
 
   citationItems     CitationItem[]
@@ -299,4 +302,33 @@ model RecruitmentFormField {
   isSystem    Boolean  @default(false)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+}
+
+// DOA : organisations criminelles et liaisons entre citoyens / organisations / enquêtes
+model Organization {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  type        String   @default("Gang") // Gang, Cartel, Mafia, MC, Groupe armé, Entreprise écran, Autre
+  dangerLevel String   @default("Moyen") // Faible, Moyen, Élevé, Extrême
+  territory   String?
+  description String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model DoaLink {
+  id          String   @id @default(cuid())
+  sourceType  String   // CITIZEN, ORGANIZATION, INVESTIGATION
+  sourceId    String
+  targetType  String
+  targetId    String
+  relation    String   // Membre, Chef, Associé, Famille, Rival, Fournisseur, Impliqué, Suspect...
+  notes       String?
+  createdById String?
+  createdBy   String?  // Nom de l'agent au moment de la création
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@index([sourceType, sourceId])
+  @@index([targetType, targetId])
 }

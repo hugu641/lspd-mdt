@@ -14,6 +14,7 @@ import {
   Car,
   Crosshair,
   FileText,
+  Network,
   Shield,
   GraduationCap,
   Settings,
@@ -218,6 +219,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         { href: "/vehicles", label: "Véhicules (DMV)", icon: Car },
         { href: "/weapons", label: "Armes & Balistique", icon: Crosshair },
         { href: "/investigations", label: "Dossiers d'Enquête", icon: FileText },
+        { href: "/doa", label: "DOA — Réseaux", icon: Network },
       ],
     },
     {

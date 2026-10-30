@@ -73,6 +73,8 @@ export default function AdminPage() {
     fine: 5000,
     jailTime: 0,
     secondarySanction: "",
+    section: "",
+    description: "",
   });
 
     const [officerSyncStatus, setOfficerSyncStatus] = useState<{ [officerId: string]: string }>({});
@@ -343,6 +345,8 @@ export default function AdminPage() {
       fine: 5000,
       jailTime: 0,
       secondarySanction: "",
+      section: "",
+      description: "",
     });
     setShowArticleModal(true);
   };
@@ -356,6 +360,8 @@ export default function AdminPage() {
       fine: item.fine,
       jailTime: item.jailTime,
       secondarySanction: item.secondarySanction || "",
+      section: item.section || "",
+      description: item.description || "",
     });
     setShowArticleModal(true);
   };
@@ -396,6 +402,8 @@ export default function AdminPage() {
             fine: 5000,
             jailTime: 0,
             secondarySanction: "",
+            section: "",
+            description: "",
           });
           await fetchData();
         } else {
@@ -1168,6 +1176,34 @@ export default function AdminPage() {
                   onChange={(e) =>
                     setNewArticleForm({ ...newArticleForm, secondarySanction: e.target.value })
                   }
+                  className="w-full px-3 py-2 rounded-xl bg-[#0e1124] border border-[#1d2242] text-xs text-white focus:outline-none focus:border-purple-500"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-300">Thème</label>
+                <input
+                  type="text"
+                  list="penal-sections"
+                  placeholder="Ex: Circulation routière, Armes, Stupéfiants..."
+                  value={newArticleForm.section}
+                  onChange={(e) => setNewArticleForm({ ...newArticleForm, section: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl bg-[#0e1124] border border-[#1d2242] text-xs text-white focus:outline-none focus:border-purple-500"
+                />
+                <datalist id="penal-sections">
+                  {Array.from(new Set(penalCode.map((p: any) => p.section).filter(Boolean))).map((sec: any) => (
+                    <option key={sec} value={sec} />
+                  ))}
+                </datalist>
+              </div>
+
+              <div className="space-y-1">
+                <label className="text-xs font-semibold text-slate-300">Description (utilisée par l&apos;assistant IA)</label>
+                <textarea
+                  rows={3}
+                  placeholder="Éléments constitutifs de l'infraction..."
+                  value={newArticleForm.description}
+                  onChange={(e) => setNewArticleForm({ ...newArticleForm, description: e.target.value })}
                   className="w-full px-3 py-2 rounded-xl bg-[#0e1124] border border-[#1d2242] text-xs text-white focus:outline-none focus:border-purple-500"
                 />
               </div>

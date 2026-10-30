@@ -1,0 +1,197 @@
+// Code pénal de référence du MDT.
+// category = gravité (pilote les calculs prison/crime de la calculatrice),
+// section  = thème (filtre de recherche des agents).
+// Format : [code, intitulé, gravité, thème, amende $, prison min, peine complémentaire, description]
+
+const C = "Contraventions";
+const D = "Délits";
+const R = "Crimes";
+const F = "Crimes fédéraux";
+
+const ROUTE = "Circulation routière";
+const ORDRE = "Ordre public";
+const STUP = "Stupéfiants";
+const ARMES = "Armes";
+const PERS = "Atteintes aux personnes";
+const BIENS = "Atteintes aux biens";
+const AUTO = "Atteintes à l'autorité publique";
+const ORGA = "Crime organisé & économique";
+
+const rows = [
+  // ── Circulation routière ─────────────────────────────────────────────
+  ["CP 100", "Excès de vitesse", C, ROUTE, 2000, 0, null, "Circuler à une vitesse supérieure à la limite autorisée sur la voie concernée."],
+  ["CP 101", "Grand excès de vitesse (+50 km/h)", C, ROUTE, 6000, 0, "Suspension du permis de conduire", "Dépasser de plus de 50 km/h la vitesse maximale autorisée."],
+  ["CP 102", "Non-respect d'un feu rouge", C, ROUTE, 2500, 0, null, "Franchir une intersection alors que le feu tricolore est au rouge."],
+  ["CP 103", "Non-respect d'un stop ou d'une priorité", C, ROUTE, 2000, 0, null, "Ne pas marquer l'arrêt à un stop ou refuser une priorité à un autre usager."],
+  ["CP 104", "Stationnement gênant ou interdit", C, ROUTE, 1000, 0, "Mise en fourrière du véhicule", "Stationner un véhicule sur un emplacement interdit, gênant ou réservé."],
+  ["CP 105", "Circulation en sens interdit", C, ROUTE, 3000, 0, null, "Emprunter une voie à contresens de la circulation autorisée."],
+  ["CP 106", "Conduite dangereuse", C, ROUTE, 4500, 0, "Suspension du permis de conduire", "Conduire de manière à mettre délibérément en danger les autres usagers (zigzags, dérapages, burn-out)."],
+  ["CP 107", "Défaut de port de la ceinture ou du casque", C, ROUTE, 1000, 0, null, "Circuler sans ceinture de sécurité attachée ou sans casque sur un deux-roues."],
+  ["CP 108", "Usage du téléphone au volant", C, ROUTE, 1500, 0, null, "Tenir ou utiliser un téléphone en main pendant la conduite."],
+  ["CP 109", "Véhicule non conforme ou défectueux", C, ROUTE, 2000, 0, "Immobilisation du véhicule", "Circuler avec un véhicule dangereux : éclairage absent, vitres teintées illégales, modifications non homologuées."],
+  ["CP 110", "Conduite sans permis valide", C, ROUTE, 6500, 0, null, "Conduire un véhicule sans être titulaire d'un permis valide pour cette catégorie, ou avec un permis suspendu."],
+  ["CP 111", "Défaut d'assurance ou d'immatriculation", C, ROUTE, 3500, 0, "Mise en fourrière du véhicule", "Circuler avec un véhicule non assuré, sans plaque ou avec une plaque illisible."],
+  ["CP 112", "Course de rue illégale", C, ROUTE, 8000, 0, "Saisie du véhicule et suspension du permis", "Participer ou organiser une course de vitesse sur la voie publique."],
+  ["CP 113", "Participation à un convoi illégal", C, ROUTE, 6000, 0, "Suspension du permis de conduire", "Circuler en convoi non autorisé bloquant ou mettant en danger la circulation."],
+  ["CP 114", "Conduite hors route en zone interdite", C, ROUTE, 2500, 0, null, "Circuler avec un véhicule sur un trottoir, une plage, un parc ou une zone non carrossable interdite."],
+  ["CP 115", "Transport dangereux de passagers", C, ROUTE, 2000, 0, null, "Transporter des passagers à l'extérieur du véhicule ou en surnombre."],
+  ["CP 116", "Klaxon ou nuisance sonore abusive", C, ROUTE, 1000, 0, null, "Usage abusif de l'avertisseur sonore ou d'un échappement bruyant non homologué."],
+  ["CP 119", "Usurpation de gyrophares ou sirènes", C, ROUTE, 10000, 0, "Confiscation de l'équipement", "Équiper ou utiliser un véhicule civil avec des feux ou une sirène réservés aux services d'urgence."],
+  ["CP 120", "Conduite en état d'ivresse", D, ROUTE, 12000, 20, "Retrait immédiat du permis", "Conduire sous l'emprise de l'alcool au-delà du seuil légal."],
+  ["CP 121", "Délit de fuite", D, ROUTE, 15000, 30, null, "Quitter les lieux d'un accident dans lequel on est impliqué sans s'arrêter ni se signaler."],
+  ["CP 122", "Conduite sous l'emprise de stupéfiants", D, ROUTE, 14000, 20, "Retrait immédiat du permis", "Conduire après avoir fait usage de produits stupéfiants."],
+  ["CP 123", "Mise en danger par véhicule", D, ROUTE, 18000, 25, "Saisie du véhicule", "Utiliser un véhicule de façon à exposer directement autrui à un risque de mort ou de blessures graves."],
+  ["CP 124", "Accident avec blessés par imprudence", D, ROUTE, 16000, 25, "Suspension du permis de conduire", "Blesser involontairement une personne par maladresse, imprudence ou violation du code de la route."],
+  ["CP 125", "Conduite malgré suspension ou retrait de permis", D, ROUTE, 15000, 20, "Saisie du véhicule", "Conduire alors que le permis a été suspendu, retiré ou annulé par décision."],
+  ["CP 200", "Refus d'obtempérer", D, ROUTE, 10000, 20, null, "Ne pas s'arrêter malgré une sommation claire d'un agent (gyrophares, sirène, injonction)."],
+  ["CP 201", "Refus d'obtempérer aggravé (course-poursuite)", D, ROUTE, 22000, 40, "Saisie du véhicule et retrait du permis", "Prendre la fuite en exposant les usagers ou les agents à un danger lors d'une poursuite."],
+
+  // ── Ordre public ─────────────────────────────────────────────────────
+  ["CP 130", "Trouble à l'ordre public", C, ORDRE, 2500, 0, null, "Comportement causant un désordre ou une gêne manifeste dans un lieu public."],
+  ["CP 131", "Tapage nocturne", C, ORDRE, 2500, 0, null, "Bruit excessif troublant la tranquillité du voisinage entre 22 h et 7 h."],
+  ["CP 132", "Ivresse publique manifeste", C, ORDRE, 3000, 0, null, "Se trouver en état d'ivresse évident dans un lieu public."],
+  ["CP 133", "Insultes ou injures en public", C, ORDRE, 2000, 0, null, "Proférer publiquement une expression outrageante envers une personne."],
+  ["CP 134", "Exhibition indécente", C, ORDRE, 5000, 0, null, "Exposer sa nudité ou se livrer à un comportement sexuel à la vue du public."],
+  ["CP 136", "Dépôt sauvage de déchets", C, ORDRE, 5000, 0, "Remise en état à la charge de l'auteur", "Abandonner des déchets ou objets sur la voie publique ou dans la nature."],
+  ["CP 137", "Port d'un masque ou dissimulation du visage", C, ORDRE, 3000, 0, "Retrait du masque", "Dissimuler son visage dans l'espace public sans motif légitime."],
+  ["CP 138", "Obstruction à la voie publique", C, ORDRE, 3500, 0, "Enlèvement de l'obstacle aux frais de l'auteur", "Entraver volontairement la circulation des véhicules ou des piétons."],
+  ["CP 139", "Mendicité agressive", C, ORDRE, 1500, 0, null, "Solliciter de l'argent avec insistance, menace ou intimidation."],
+  ["CP 140", "Jeux d'argent illégaux", C, ORDRE, 6000, 0, "Saisie des mises et du matériel", "Organiser ou participer à des paris ou jeux d'argent non autorisés."],
+  ["CP 141", "Rassemblement illégal", C, ORDRE, 4000, 0, "Dispersion immédiate", "Participer à un attroupement non déclaré après sommation de se disperser."],
+  ["CP 142", "Vente ambulante sans autorisation", C, ORDRE, 2500, 0, "Saisie de la marchandise", "Vendre des biens sur la voie publique sans licence."],
+  ["CP 143", "Consommation d'alcool sur la voie publique", C, ORDRE, 1000, 0, "Confiscation de l'alcool", "Consommer de l'alcool dans un lieu public où cela est interdit."],
+  ["CP 144", "Fausse alerte aux services d'urgence", C, ORDRE, 8000, 0, null, "Appeler volontairement les secours ou la police pour un faux motif."],
+  ["CP 145", "Pollution ou atteinte à l'environnement", C, ORDRE, 7000, 0, "Remise en état à la charge de l'auteur", "Déverser des produits dangereux, braconner ou détruire volontairement un espace naturel."],
+  ["CP 146", "Cruauté envers les animaux", D, ORDRE, 12000, 15, "Confiscation de l'animal", "Exercer des sévices graves ou un acte de cruauté envers un animal."],
+  ["CP 147", "Émeute", D, ORDRE, 20000, 30, null, "Participer à un attroupement violent causant dégâts ou blessés."],
+  ["CP 148", "Provocation à la haine ou à la violence", D, ORDRE, 15000, 20, null, "Inciter publiquement à la haine, à la discrimination ou à la violence envers un groupe."],
+  ["CP 149", "Violation de domicile", D, ORDRE, 10000, 15, "Expulsion immédiate des lieux", "S'introduire ou se maintenir dans le domicile d'autrui sans son accord."],
+
+  // ── Stupéfiants ──────────────────────────────────────────────────────
+  ["CP 117", "Usage de stupéfiants", C, STUP, 15000, 0, "Confiscation des produits", "Consommer un produit stupéfiant, quelle qu'en soit la quantité."],
+  ["CP 118", "Détention de matériel destiné à la consommation ou à la production de stupéfiants", C, STUP, 12000, 0, "Confiscation du matériel", "Posséder des pipes, balances, sachets, lampes ou matériel de culture ou de transformation."],
+  ["CP 220", "Détention de stupéfiants", D, STUP, 18000, 30, "Confiscation des produits", "Détenir une quantité de stupéfiants dépassant l'usage personnel (plus de 10 unités)."],
+  ["CP 221", "Vente de stupéfiants (deal de rue)", D, STUP, 25000, 40, "Confiscation des produits et de l'argent", "Céder ou vendre des stupéfiants à un tiers en petite quantité."],
+  ["CP 222", "Culture de stupéfiants", D, STUP, 22000, 35, "Destruction des plantations", "Cultiver des plants destinés à produire un stupéfiant."],
+  ["CP 223", "Incitation à l'usage de stupéfiants", D, STUP, 12000, 15, null, "Encourager ou faciliter la consommation de stupéfiants par autrui."],
+  ["CP 224", "Vente de stupéfiants à un mineur ou près d'une école", D, STUP, 30000, 45, "Confiscation des produits", "Céder des stupéfiants à un mineur ou aux abords d'un établissement scolaire."],
+  ["CP 330", "Trafic de stupéfiants", R, STUP, 70000, 100, "Saisie des biens", "Transporter, importer ou distribuer des stupéfiants en grande quantité (plus de 50 unités)."],
+  ["CP 331", "Production ou laboratoire de stupéfiants", R, STUP, 75000, 100, "Saisie du laboratoire et des biens", "Exploiter un laboratoire de fabrication ou de transformation de drogues."],
+  ["CP 332", "Direction d'un réseau de trafic de stupéfiants", R, STUP, 120000, 150, "Saisie des biens", "Organiser, diriger ou financer un trafic de stupéfiants."],
+
+  // ── Armes ────────────────────────────────────────────────────────────
+  ["CP 150", "Port d'arme blanche sans motif légitime", C, ARMES, 5000, 0, "Confiscation de l'arme", "Porter un couteau, une batte ou une arme par destination dans l'espace public sans raison valable."],
+  ["CP 151", "Port apparent d'une arme autorisée", C, ARMES, 3000, 0, null, "Exhiber en public une arme pourtant détenue légalement (PPA) au lieu de la porter dissimulée."],
+  ["CP 152", "Défaut de présentation du permis de port d'arme", C, ARMES, 2000, 0, "Confiscation provisoire de l'arme", "Être en possession d'une arme déclarée sans pouvoir présenter le PPA lors d'un contrôle."],
+  ["CP 210", "Port d'arme illégal", D, ARMES, 20000, 30, "Confiscation de l'arme", "Porter une arme à feu sans permis de port d'arme valide (PPA)."],
+  ["CP 211", "Détention d'arme non déclarée", D, ARMES, 15000, 20, "Confiscation de l'arme", "Posséder une arme à feu non enregistrée au registre balistique."],
+  ["CP 212", "Arme au numéro de série effacé", D, ARMES, 25000, 40, "Confiscation de l'arme", "Détenir une arme dont le numéro de série a été limé, effacé ou falsifié."],
+  ["CP 213", "Décharge d'arme à feu en public", D, ARMES, 18000, 25, "Confiscation de l'arme", "Tirer avec une arme à feu dans un lieu public sans légitime défense."],
+  ["CP 214", "Menace avec une arme", D, ARMES, 22000, 35, "Confiscation de l'arme", "Menacer une personne en la mettant en joue ou en brandissant une arme."],
+  ["CP 215", "Détention d'arme de catégorie A (automatique / guerre)", D, ARMES, 30000, 45, "Confiscation de l'arme", "Posséder une arme automatique, un fusil d'assaut ou une arme de guerre."],
+  ["CP 216", "Détention d'explosifs", D, ARMES, 30000, 45, "Destruction des explosifs", "Posséder des explosifs, grenades ou engins incendiaires sans autorisation."],
+  ["CP 217", "Port de gilet pare-balles illégal", C, ARMES, 4000, 0, "Confiscation du gilet", "Porter un gilet pare-balles de type militaire ou police sans autorisation."],
+  ["CP 218", "Vente illégale d'arme à feu", D, ARMES, 28000, 40, "Confiscation des armes", "Céder ou vendre une arme à feu en dehors d'une armurerie agréée."],
+  ["CP 400", "Trafic d'armes", F, ARMES, 100000, 120, "Transfert au procureur fédéral", "Importer, fabriquer ou distribuer des armes à feu en quantité."],
+  ["CP 401", "Usage d'explosifs", F, ARMES, 120000, 150, "Transfert au procureur fédéral", "Faire exploser un engin causant des dégâts ou mettant des vies en danger."],
+
+  // ── Atteintes aux personnes ──────────────────────────────────────────
+  ["CP 160", "Violences légères", D, PERS, 8000, 10, null, "Porter des coups sans entraîner de blessure grave (gifle, bousculade, coup de poing isolé)."],
+  ["CP 161", "Menaces de mort ou de violence", D, PERS, 10000, 15, null, "Menacer verbalement ou par écrit une personne de violences ou de mort."],
+  ["CP 162", "Harcèlement", D, PERS, 12000, 15, "Interdiction de contact avec la victime", "Agissements répétés dégradant les conditions de vie d'une personne."],
+  ["CP 163", "Rixe sur la voie publique", D, PERS, 9000, 10, null, "Participer à une bagarre entre plusieurs personnes dans un lieu public."],
+  ["CP 164", "Non-assistance à personne en danger", D, PERS, 12000, 15, null, "S'abstenir volontairement de porter secours à une personne en péril sans risque pour soi."],
+  ["CP 165", "Violences conjugales ou intrafamiliales", D, PERS, 18000, 30, "Interdiction de contact avec la victime", "Violences commises par un conjoint, ex-conjoint ou membre de la famille."],
+  ["CP 166", "Atteinte à la vie privée", D, PERS, 10000, 10, "Destruction des enregistrements", "Capter, enregistrer ou diffuser l'image ou les paroles d'une personne sans son consentement."],
+  ["CP 167", "Diffamation", C, PERS, 5000, 0, null, "Allégation publique d'un fait portant atteinte à l'honneur d'une personne."],
+  ["CP 168", "Extorsion", D, PERS, 25000, 40, null, "Obtenir de l'argent, un bien ou une signature par la violence, la menace ou la contrainte."],
+  ["CP 169", "Chantage", D, PERS, 20000, 30, null, "Obtenir un avantage en menaçant de révéler des faits portant atteinte à l'honneur."],
+  ["CP 300", "Violence aggravée", R, PERS, 35000, 60, null, "Violences entraînant des blessures graves, commises avec arme, en réunion ou sur personne vulnérable."],
+  ["CP 301", "Séquestration", R, PERS, 45000, 70, null, "Arrêter, enfermer ou détenir une personne contre sa volonté."],
+  ["CP 302", "Enlèvement", R, PERS, 60000, 90, null, "Emmener de force une personne d'un lieu à un autre contre sa volonté."],
+  ["CP 303", "Homicide involontaire", R, PERS, 40000, 60, null, "Causer la mort d'autrui par maladresse, imprudence ou négligence."],
+  ["CP 304", "Torture ou actes de barbarie", R, PERS, 90000, 120, null, "Infliger volontairement à une personne des souffrances physiques ou mentales aiguës."],
+  ["CP 305", "Agression sexuelle", R, PERS, 70000, 100, "Inscription au fichier des auteurs d'infractions sexuelles", "Atteinte sexuelle commise avec violence, contrainte, menace ou surprise."],
+  ["CP 306", "Traite d'êtres humains", R, PERS, 100000, 140, null, "Recruter, transporter ou héberger une personne pour l'exploiter."],
+  ["CP 307", "Proxénétisme", R, PERS, 60000, 90, "Saisie des gains", "Tirer profit de la prostitution d'autrui ou l'organiser."],
+  ["CP 320", "Prise d'otage", R, PERS, 80000, 120, null, "Retenir une ou plusieurs personnes pour obtenir une rançon, une fuite ou l'exécution d'un ordre."],
+  ["CP 340", "Tentative de meurtre", R, PERS, 90000, 120, null, "Tenter de donner volontairement la mort à autrui, l'acte n'ayant échoué que par une circonstance extérieure."],
+  ["CP 341", "Meurtre", R, PERS, 120000, 160, null, "Donner volontairement la mort à autrui."],
+  ["CP 342", "Assassinat (meurtre avec préméditation)", R, PERS, 150000, 200, null, "Meurtre commis avec préméditation ou guet-apens."],
+  ["CP 410", "Meurtre sur agent des forces de l'ordre", F, PERS, 150000, 180, "Transfert au procureur fédéral", "Donner volontairement la mort à un agent dépositaire de l'autorité publique dans l'exercice de ses fonctions."],
+  ["CP 411", "Tentative de meurtre sur agent des forces de l'ordre", F, PERS, 120000, 150, "Transfert au procureur fédéral", "Tenter de tuer un agent des forces de l'ordre (tir, véhicule-bélier...)."],
+
+  // ── Atteintes aux biens ──────────────────────────────────────────────
+  ["CP 135", "Occupation illégale d'un lieu", C, BIENS, 4500, 0, "Expulsion immédiate des lieux", "S'installer sans droit dans un bâtiment ou un terrain appartenant à autrui."],
+  ["CP 170", "Vol simple", D, BIENS, 8000, 10, "Restitution au propriétaire", "Soustraire frauduleusement un bien appartenant à autrui (vol à l'étalage, vol à la tire)."],
+  ["CP 171", "Recel", D, BIENS, 12000, 15, "Confiscation des biens recelés", "Détenir, transmettre ou vendre un bien en sachant qu'il provient d'un vol ou d'un délit."],
+  ["CP 172", "Dégradation de biens", C, BIENS, 4000, 0, "Remboursement des dégâts", "Détruire ou endommager volontairement le bien d'autrui."],
+  ["CP 173", "Tags et graffitis", C, BIENS, 2500, 0, "Nettoyage à la charge de l'auteur", "Inscrire ou peindre sans autorisation sur un bien public ou privé."],
+  ["CP 174", "Intrusion sur propriété privée", C, BIENS, 3000, 0, "Expulsion immédiate des lieux", "Pénétrer sans autorisation sur un terrain ou un site privé clôturé."],
+  ["CP 175", "Effraction", D, BIENS, 15000, 20, null, "Forcer une serrure, une porte ou une fenêtre pour s'introduire dans un lieu."],
+  ["CP 176", "Cambriolage", D, BIENS, 25000, 40, "Restitution des biens volés", "Vol commis dans un local d'habitation ou commercial après effraction ou escalade."],
+  ["CP 177", "Vol avec violence (vol à l'arraché)", D, BIENS, 22000, 35, "Restitution au propriétaire", "Vol accompagné de violences sur la victime sans arme."],
+  ["CP 178", "Escroquerie", D, BIENS, 20000, 30, "Remboursement des victimes", "Tromper une personne par manœuvres frauduleuses pour obtenir de l'argent ou un bien."],
+  ["CP 179", "Abus de confiance", D, BIENS, 15000, 20, "Remboursement des victimes", "Détourner des fonds ou un bien remis à charge de les rendre ou d'en faire un usage déterminé."],
+  ["CP 180", "Incendie volontaire", D, BIENS, 28000, 40, "Remboursement des dégâts", "Mettre volontairement le feu au bien d'autrui sans danger pour les personnes."],
+  ["CP 181", "Vol de carburant ou de matériel professionnel", C, BIENS, 5000, 0, "Restitution au propriétaire", "Dérober du carburant, des outils ou du matériel sur un chantier ou un véhicule."],
+  ["CP 182", "Usurpation de plaque d'immatriculation", D, BIENS, 12000, 15, "Saisie du véhicule", "Apposer sur un véhicule une plaque attribuée à un autre véhicule ou falsifiée."],
+  ["CP 230", "Vol de véhicule", D, BIENS, 25000, 40, "Restitution au propriétaire", "S'emparer frauduleusement d'un véhicule appartenant à autrui."],
+  ["CP 231", "Car-jacking", R, BIENS, 40000, 60, "Restitution au propriétaire", "Voler un véhicule en menaçant ou en violentant son conducteur."],
+  ["CP 310", "Braquage de commerce", R, BIENS, 50000, 90, null, "Vol à main armée dans un commerce (supérette, station-service, bijouterie)."],
+  ["CP 311", "Braquage de banque", R, BIENS, 90000, 130, "Restitution des fonds", "Vol à main armée dans un établissement bancaire ou un coffre-fort."],
+  ["CP 312", "Attaque de fourgon blindé", R, BIENS, 95000, 130, "Restitution des fonds", "Attaquer un transport de fonds pour s'emparer de son contenu."],
+  ["CP 313", "Home-jacking (vol avec séquestration à domicile)", R, BIENS, 60000, 90, null, "Pénétrer dans un domicile et contraindre ses occupants pour les voler."],
+  ["CP 314", "Incendie criminel avec mise en danger", R, BIENS, 60000, 90, null, "Incendie volontaire mettant en danger la vie d'autrui."],
+
+  // ── Atteintes à l'autorité publique ──────────────────────────────────
+  ["CD 19", "Manquement au devoir de réserve", C, AUTO, 4000, 0, null, "Manquement d'un agent public à son obligation de discrétion et de neutralité."],
+  ["CP 185", "Refus de décliner son identité", C, AUTO, 3000, 0, "Vérification d'identité au poste", "Refuser de donner son identité ou ses papiers à un agent lors d'un contrôle légal."],
+  ["CP 186", "Non-respect d'un périmètre de sécurité", C, AUTO, 3500, 0, null, "Franchir un cordon ou un périmètre de police sans autorisation."],
+  ["CP 187", "Entrave à l'action des secours", C, AUTO, 5000, 0, null, "Gêner volontairement l'intervention des pompiers, ambulanciers ou policiers."],
+  ["CP 205", "Outrage à agent", D, AUTO, 8000, 15, null, "Paroles, gestes ou menaces portant atteinte à la dignité d'un agent dans l'exercice de ses fonctions."],
+  ["CP 206", "Rébellion", D, AUTO, 12000, 20, null, "Opposer une résistance violente à un agent agissant dans l'exercice de ses fonctions (interpellation)."],
+  ["CP 207", "Violences sur agent", D, AUTO, 20000, 35, null, "Porter des coups à un agent des forces de l'ordre ou des secours."],
+  ["CP 208", "Fausse déclaration ou dénonciation calomnieuse", D, AUTO, 10000, 15, null, "Dénoncer aux autorités un fait inexistant ou une personne innocente."],
+  ["CP 209", "Usurpation d'identité", D, AUTO, 15000, 20, null, "Prendre le nom d'un tiers ou présenter de faux papiers d'identité."],
+  ["CP 225", "Usurpation de fonction (faux policier)", D, AUTO, 25000, 40, "Confiscation de l'uniforme et du matériel", "Se faire passer pour un agent public, porter un uniforme ou un insigne sans droit."],
+  ["CP 226", "Faux et usage de faux", D, AUTO, 18000, 25, "Saisie des documents", "Fabriquer, falsifier ou utiliser un document officiel falsifié (permis, licence, papiers)."],
+  ["CP 227", "Entrave à la justice", D, AUTO, 18000, 25, null, "Faire obstacle à une enquête : destruction de preuve, intimidation de témoin, faux témoignage."],
+  ["CP 228", "Évasion ou tentative d'évasion", D, AUTO, 20000, 40, null, "S'évader ou tenter de s'évader d'une garde à vue, d'un transport ou d'un établissement pénitentiaire."],
+  ["CP 229", "Non-respect d'une décision de justice", D, AUTO, 12000, 20, null, "Ne pas respecter une interdiction, un contrôle judiciaire ou une mesure prononcée par un juge."],
+  ["CP 232", "Complicité d'évasion", D, AUTO, 25000, 40, null, "Aider une personne détenue à s'évader."],
+  ["CP 233", "Délit d'initié ou fuite d'informations d'enquête", D, AUTO, 20000, 30, null, "Divulguer des informations confidentielles d'une enquête ou d'un service de police."],
+  ["CP 350", "Corruption d'agent public", R, AUTO, 60000, 80, "Saisie des fonds", "Offrir ou accepter un avantage pour qu'un agent public accomplisse ou s'abstienne d'un acte de sa fonction."],
+  ["CP 351", "Agression armée contre les forces de l'ordre", R, AUTO, 80000, 120, null, "Ouvrir le feu ou attaquer avec une arme des agents en intervention."],
+  ["CP 352", "Parjure", D, AUTO, 15000, 20, null, "Mentir sous serment devant une juridiction."],
+
+  // ── Crime organisé & économique ──────────────────────────────────────
+  ["CP 240", "Blanchiment d'argent", D, ORGA, 30000, 40, "Saisie des fonds", "Dissimuler l'origine illicite de fonds ou en faciliter la justification mensongère."],
+  ["CP 241", "Fraude fiscale", D, ORGA, 25000, 20, "Redressement fiscal", "Se soustraire volontairement à l'impôt ou dissimuler des revenus."],
+  ["CP 242", "Contrebande", D, ORGA, 25000, 30, "Saisie des marchandises", "Importer ou transporter des marchandises prohibées ou sans les déclarer."],
+  ["CP 243", "Possession d'argent sale", D, ORGA, 15000, 20, "Saisie des fonds", "Détenir des sommes en liquide dont l'origine illicite est établie (billets marqués, argent non justifié)."],
+  ["CP 244", "Racket", D, ORGA, 25000, 40, null, "Imposer à un commerçant ou un particulier le paiement d'une « protection » par intimidation."],
+  ["CP 245", "Exploitation d'un commerce illégal", D, ORGA, 20000, 25, "Fermeture administrative", "Gérer un établissement non déclaré servant à une activité illégale."],
+  ["CP 246", "Piratage informatique", D, ORGA, 22000, 30, "Saisie du matériel informatique", "Accéder frauduleusement à un système informatique, ou voler ou altérer des données."],
+  ["CP 247", "Contrefaçon", D, ORGA, 18000, 20, "Destruction des contrefaçons", "Fabriquer ou vendre des produits imitant une marque ou de la fausse monnaie."],
+  ["CP 360", "Association de malfaiteurs", R, ORGA, 50000, 70, null, "Participer à un groupement formé en vue de préparer des crimes ou délits graves."],
+  ["CP 361", "Direction d'une organisation criminelle", R, ORGA, 100000, 150, "Saisie des biens", "Diriger ou organiser un groupe criminel structuré (gang, cartel, mafia)."],
+  ["CP 362", "Fabrication de fausse monnaie", R, ORGA, 70000, 90, "Saisie du matériel et des fonds", "Fabriquer ou mettre en circulation de faux billets."],
+  ["CP 402", "Terrorisme", F, ORGA, 250000, 240, "Transfert au procureur fédéral", "Acte intentionnel visant à troubler gravement l'ordre public par l'intimidation ou la terreur."],
+  ["CP 403", "Atteinte à la sûreté de l'État", F, ORGA, 200000, 200, "Transfert au procureur fédéral", "Espionnage, sabotage ou attaque contre des institutions gouvernementales."],
+  ["CP 404", "Trafic international de stupéfiants", F, ORGA, 180000, 180, "Transfert au procureur fédéral", "Importation de stupéfiants par voie aérienne ou maritime à grande échelle."],
+  ["CP 405", "Attaque d'un bâtiment fédéral ou d'une prison", F, ORGA, 200000, 200, "Transfert au procureur fédéral", "Attaquer à main armée un bâtiment fédéral, une base militaire ou un établissement pénitentiaire."],
+  ["CP 406", "Vol d'équipement militaire", F, ORGA, 150000, 160, "Transfert au procureur fédéral", "Voler des armes, véhicules ou équipements appartenant à l'armée ou à l'État fédéral."],
+];
+
+module.exports = rows.map(([code, title, category, section, fine, jailTime, secondarySanction, description], i) => ({
+  code,
+  title,
+  category,
+  section,
+  fine,
+  jailTime,
+  secondarySanction,
+  description,
+  orderIndex: i + 1,
+}));
