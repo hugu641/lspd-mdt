@@ -280,6 +280,44 @@ export async function getDiscordUser(accessToken: string) {
  * Check if a Discord user is an authorized LSPD Officer
  * Verifies guild membership, allowed roles, or database officer match
  */
+// Minimum Discord role to use the MDT (Rookie). Roles of higher ranks also grant access.
+const MDT_MIN_ROLE_ID = process.env.DISCORD_MIN_ROLE_ID || "1564955433968472114";
+const BASE_RANK_NAMES = ["Rookie", "Agent", "Membre LSPD"];
+
+export function hasMdtAccess(roleIds: string[], roleNames: string[]): boolean {
+  if (roleIds.includes(MDT_MIN_ROLE_ID)) return true;
+  // A role named after a rank above Rookie (Officier I ... Chief, US Marshal) also qualifies.
+  const rank = detectRankFromRoleNames(roleNames);
+  return Boolean(rank && !BASE_RANK_NAMES.includes(rank));
+}
+
+/**
+ * Re-checks a logged-in officer's Discord roles.
+ * true/false = verified; null = cannot verify (Discord not configured or unreachable), keep the session.
+ */
+export async function checkMdtAccess(discordId: string): Promise<boolean | null> {
+  const { botToken, guildId } = await getDiscordConfig();
+  if (!botToken || !guildId) return null;
+  try {
+    const memberRes = await fetch(`https://discord.com/api/v10/guilds/${guildId}/members/${discordId}`, {
+      headers: { Authorization: `Bot ${botToken}` },
+    });
+    if (memberRes.status === 404) return false; // left the Discord server
+    if (!memberRes.ok) return null;
+    const roleIds: string[] = (await memberRes.json()).roles || [];
+    if (roleIds.includes(MDT_MIN_ROLE_ID)) return true;
+
+    const rolesRes = await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
+      headers: { Authorization: `Bot ${botToken}` },
+    });
+    if (!rolesRes.ok) return null;
+    const roleNames = (await rolesRes.json()).filter((r: any) => roleIds.includes(r.id)).map((r: any) => r.name);
+    return hasMdtAccess(roleIds, roleNames);
+  } catch {
+    return null;
+  }
+}
+
 export async function checkUserLSPDAccess(discordUser: any, userAccessToken?: string) {
   const config = await getDiscordConfig();
   const guildId = config.guildId;
@@ -287,6 +325,7 @@ export async function checkUserLSPDAccess(discordUser: any, userAccessToken?: st
 
   // 1. Fetch member on the guild using Bot Token to check roles & rank
   let member: any = null;
+  let memberRoleIds: string[] = [];
   let memberRolesNames: string[] = [];
 
   if (botToken && guildId) {
@@ -297,7 +336,7 @@ export async function checkUserLSPDAccess(discordUser: any, userAccessToken?: st
       );
       if (memberRes.ok) {
         member = await memberRes.json();
-        const memberRoleIds: string[] = member.roles || [];
+        memberRoleIds = member.roles || [];
 
         const rolesRes = await fetch(`https://discord.com/api/v10/guilds/${guildId}/roles`, {
           headers: { Authorization: `Bot ${botToken}` },
@@ -329,6 +368,22 @@ export async function checkUserLSPDAccess(discordUser: any, userAccessToken?: st
       lower.includes("staff")
     );
   });
+
+  // Required for every login, including officers already registered in the MDT.
+  if (botToken && guildId) {
+    if (!member) {
+      return {
+        allowed: false,
+        reason: `Vous n'êtes pas membre du serveur Discord LSPD. Rejoignez le serveur avec votre compte Discord (${discordUser.username}).`,
+      };
+    }
+    if (!hasMdtAccess(memberRoleIds, memberRolesNames)) {
+      return {
+        allowed: false,
+        reason: "Accès refusé : le rôle Discord Rookie (minimum) est requis pour accéder au MDT. Contactez votre hiérarchie.",
+      };
+    }
+  }
 
   // 2. Check if an Officer is already linked with this discordId in DB
   let existingOfficer = await prisma.officer.findFirst({
@@ -414,32 +469,7 @@ export async function checkUserLSPDAccess(discordUser: any, userAccessToken?: st
     };
   }
 
-  // If member was not found on the guild
-  if (!member) {
-    return {
-      allowed: false,
-      reason: `Vous n'êtes pas membre du serveur Discord LSPD. Rejoignez le serveur avec votre compte Discord (${discordUser.username}).`,
-    };
-  }
-
-  // Check allowed roles
-  const allowedList = (config.allowedRoles || DEFAULT_ALLOWED_ROLES.join(","))
-    .split(",")
-    .map((r) => r.trim().toLowerCase());
-
-  const matchedRole =
-    memberRolesNames.find((roleName) =>
-      allowedList.some((allowed) => roleName.toLowerCase().includes(allowed) || allowed === "*")
-    ) || (isAdminOrFounder ? "Fondateur / Admin Discord" : null) || (detectedRank ? detectedRank : null);
-
-  if (!matchedRole) {
-    return {
-      allowed: false,
-      reason: `Accès refusé : Aucun rôle LSPD valide détecté sur votre profil Discord. Vos rôles actuels : [${
-        memberRolesNames.length > 0 ? memberRolesNames.join(", ") : "Aucun rôle"
-      }]. Attribuez-vous le rôle LSPD ou votre grade sur votre serveur Discord.`,
-    };
-  }
+  const matchedRole = detectedRank || "Rookie";
 
   // Final Rank: Priority to detected role rank (e.g. Rookie), fallback to Chief if admin, or Rookie
   const finalRank = detectedRank || (isAdminOrFounder ? "Chief of Police" : "Rookie");

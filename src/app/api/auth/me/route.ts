@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { cookies } from "next/headers";
 import { prisma } from "../../../../lib/prisma";
-import { verifySessionToken, getDiscordConfig, syncOfficerFromDiscord } from "../../../../lib/discord";
+import { verifySessionToken, getDiscordConfig, syncOfficerFromDiscord, checkMdtAccess } from "../../../../lib/discord";
 
 export const dynamic = "force-dynamic";
 
@@ -41,6 +41,17 @@ export async function GET() {
         authenticated: false,
         authRequired: config.authRequired,
       });
+    }
+
+    // Rookie role removed or member left the Discord server: end the session immediately.
+    if (officer.discordId && (await checkMdtAccess(officer.discordId)) === false) {
+      const denied = NextResponse.json({
+        authenticated: false,
+        authRequired: config.authRequired,
+        error: "Votre rôle Discord ne permet plus d'accéder au MDT.",
+      });
+      denied.cookies.delete("lspd_session");
+      return denied;
     }
 
     // REAL-TIME SYNC: If officer has Discord ID, seamlessly sync their latest Discord roles, rank, and certifications
