@@ -6,6 +6,26 @@ export const dynamic = "force-dynamic";
 const GROQ_API_URL = process.env.GROQ_API_URL || "https://api.groq.com/openai/v1/chat/completions";
 const GROQ_MODEL = process.env.GROQ_MODEL || "llama-3.3-70b-versatile";
 
+// Groq retires models over time: when the configured one is gone, pick an available chat model.
+let fallbackModel: string | null = null;
+const MODEL_PREFERENCES = [/gpt-oss-120b/i, /llama.*70b/i, /llama-4/i, /qwen/i, /gpt-oss/i, /llama/i];
+const NON_CHAT_MODEL = /whisper|tts|guard|embed|playai|orpheus|distil|compound/i;
+
+async function findAvailableModel(apiKey: string): Promise<string | null> {
+  const res = await fetch(GROQ_API_URL.replace(/\/chat\/completions$/, "/models"), {
+    headers: { Authorization: `Bearer ${apiKey}` },
+  });
+  if (!res.ok) return null;
+  const ids: string[] = ((await res.json())?.data || [])
+    .filter((m: any) => m?.id && m.active !== false && !NON_CHAT_MODEL.test(m.id))
+    .map((m: any) => m.id);
+  for (const pref of MODEL_PREFERENCES) {
+    const match = ids.find((id) => pref.test(id));
+    if (match) return match;
+  }
+  return ids[0] || null;
+}
+
 // POST { facts: string } -> { suggestions: [{ item, count, reason }] }
 // The AI only returns article codes; fines/jail/sanctions always come from the database.
 export async function POST(req: Request) {
@@ -31,11 +51,11 @@ export async function POST(req: Request) {
     // Code + title only: with descriptions the prompt (~6k tokens) exceeds Groq's free-tier tokens/minute.
     const catalog = items.map((i) => `${i.code} | ${i.title}`).join("\n");
 
-    const groqRes = await fetch(GROQ_API_URL, {
+    const callGroq = (model: string) => fetch(GROQ_API_URL, {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
-        model: GROQ_MODEL,
+        model,
         temperature: 0.1,
         response_format: { type: "json_object" },
         messages: [
@@ -53,6 +73,16 @@ export async function POST(req: Request) {
         ],
       }),
     });
+
+    let groqRes = await callGroq(fallbackModel || GROQ_MODEL);
+    if ((groqRes.status === 404 || groqRes.status === 400) && !fallbackModel) {
+      const detail = await groqRes.clone().text().catch(() => "");
+      if (/model/i.test(detail) && /(not exist|not found|decommission|access)/i.test(detail)) {
+        fallbackModel = await findAvailableModel(apiKey);
+        console.warn(`Groq model "${GROQ_MODEL}" unavailable, falling back to "${fallbackModel}"`);
+        if (fallbackModel) groqRes = await callGroq(fallbackModel);
+      }
+    }
 
     if (!groqRes.ok) {
       const detail = await groqRes.text().catch(() => "");
